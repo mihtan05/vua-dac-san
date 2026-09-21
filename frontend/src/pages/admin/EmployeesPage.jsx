@@ -8,16 +8,15 @@ import {
 } from 'lucide-react';
 
 const MOCK_EMPLOYEES = [
-  { manhanvien: 'NV001', hoten: 'Nguyễn Văn An', email: 'an.nguyen@vuadacsan.com', sdt: '0901234567', chucvu: 'BAN_HANG', trangthai: 1, ngaytao: '2024-03-01', ngaysinh: '1995-05-15', cccd: '079095001234' },
-  { manhanvien: 'NV002', hoten: 'Trần Thị Bình', email: 'binh.tran@vuadacsan.com', sdt: '0912345678', chucvu: 'KHO', trangthai: 1, ngaytao: '2024-05-15', ngaysinh: '1993-10-20', cccd: '079093001235' },
-  { manhanvien: 'NV003', hoten: 'Lê Minh Cường', email: 'cuong.le@vuadacsan.com', sdt: '0923456789', chucvu: 'CSKH', trangthai: 1, ngaytao: '2024-07-10', ngaysinh: '1996-01-10', cccd: '079096001236' },
-  { manhanvien: 'NV004', hoten: 'Phạm Thu Dung', email: 'dung.pham@vuadacsan.com', sdt: '0934567890', chucvu: 'KE_TOAN', trangthai: 0, ngaytao: '2023-12-01', ngaysinh: '1994-08-25', cccd: '079094001237' },
+  { manhanvien: 'NV001', hoten: 'Nguyễn Văn An', email: 'an.nguyen@vuadacsan.com', sdt: '0901234567', chucvu: 'NHAN_VIEN', trangthai: 1, ngaytao: '2024-03-01', ngaysinh: '1995-05-15', cccd: '079095001234' },
+  { manhanvien: 'NV002', hoten: 'Trần Thị Bình', email: 'binh.tran@vuadacsan.com', sdt: '0912345678', chucvu: 'NHAN_VIEN', trangthai: 1, ngaytao: '2024-05-15', ngaysinh: '1993-10-20', cccd: '079093001235' },
+  { manhanvien: 'NV003', hoten: 'Lê Minh Cường', email: 'cuong.le@vuadacsan.com', sdt: '0923456789', chucvu: 'NHAN_VIEN', trangthai: 1, ngaytao: '2024-07-10', ngaysinh: '1996-01-10', cccd: '079096001236' },
+  { manhanvien: 'NV004', hoten: 'Phạm Thu Dung', email: 'dung.pham@vuadacsan.com', sdt: '0934567890', chucvu: 'NHAN_VIEN', trangthai: 0, ngaytao: '2023-12-01', ngaysinh: '1994-08-25', cccd: '079094001237' },
 ];
 
-const ROLE_LABELS = { BAN_HANG: 'Bán hàng', KHO: 'Thủ kho', CSKH: 'CSKH', KE_TOAN: 'Kế toán', QUAN_LY: 'Quản lý' };
+const ROLE_LABELS = { NHAN_VIEN: 'Nhân viên', QUAN_LY: 'Quản lý' };
 const ROLE_COLORS = {
-  BAN_HANG: 'bg-blue-100 text-blue-700', KHO: 'bg-orange-100 text-orange-700', CSKH: 'bg-purple-100 text-purple-700',
-  KE_TOAN: 'bg-green-100 text-green-700', QUAN_LY: 'bg-brand-primary/20 text-brand-accent',
+  NHAN_VIEN: 'bg-blue-100 text-blue-700', QUAN_LY: 'bg-brand-primary/20 text-brand-accent',
 };
 const AVATAR_COLORS = ['#D4A373', '#2D6A4F', '#C97A34', '#6B7280', '#8B5CF6'];
 function getInitials(name) { return name ? name.split(' ').slice(-2).map(n => n[0]).join('').toUpperCase() : '?'; }

@@ -329,7 +329,7 @@ export const FinanceController = {
         console.warn('Could not fetch employee names for Excel:', e.message);
       }
 
-      const ROLE_LABEL = { QUAN_LY: 'Quản lý', KE_TOAN: 'Kế toán', BAN_HANG: 'Bán hàng', KHO: 'Thủ kho', CSKH: 'CSKH' };
+      const ROLE_LABEL = { QUAN_LY: 'Quản lý', NHAN_VIEN: 'Nhân viên', KE_TOAN: 'Kế toán', BAN_HANG: 'Bán hàng', KHO: 'Thủ kho', CSKH: 'CSKH' };
 
       let totalLuong = 0, totalPhuCap = 0, totalKhauTru = 0, totalThucNhan = 0;
 

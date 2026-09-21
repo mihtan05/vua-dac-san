@@ -96,33 +96,22 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           
-          {/* Admin area: role restrictions checking */}
+          {/* Manager-only routes: employees, suppliers */}
           <Route element={<ProtectedRoute allowedRoles={['QUAN_LY']} />}>
-            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="employees" element={<EmployeesPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="promotions" element={<PromotionsPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={['BAN_HANG', 'QUAN_LY']} />}>
+          {/* Routes accessible by NHAN_VIEN and QUAN_LY */}
+          <Route element={<ProtectedRoute allowedRoles={['NHAN_VIEN', 'QUAN_LY']} />}>
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="customers" element={<CustomersPage />} />
             <Route path="posts" element={<PostsPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={['KHO', 'QUAN_LY']} />}>
             <Route path="products" element={<ProductsPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={['CSKH', 'QUAN_LY']} />}>
             <Route path="support" element={<SupportPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={['KE_TOAN', 'QUAN_LY']} />}>
             <Route path="finance" element={<FinancePage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={['BAN_HANG', 'KE_TOAN', 'QUAN_LY']} />}>
-            <Route path="promotions" element={<PromotionsPage />} />
           </Route>
         </Route>
 

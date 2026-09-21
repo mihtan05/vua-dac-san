@@ -11,4 +11,5 @@ export const customerApi = {
   addAddress: (customerId, data) => api.post(`/orders/customers/${customerId}/addresses`, data),
   register: (data) => api.post('/orders/customers/register', data),
   verifyOtp: (data) => api.post('/orders/customers/verify-otp', data),
+  changePassword: (data) => api.post('/auth/change-password', data),
 };

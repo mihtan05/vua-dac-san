@@ -102,10 +102,10 @@ export const ContentController = {
       }
 
       const userRoles = req.user.cacQuyen || [req.user.vaiTro];
-      const isSales = userRoles.includes('BAN_HANG');
+      const isStaff = userRoles.includes('NHAN_VIEN');
       const isManager = userRoles.includes('QUAN_LY');
 
-      if (isSales && !isManager) {
+      if (isStaff && !isManager) {
         if (post.manvbanhang !== req.user.tenDangnhap) {
           return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa bài viết của người khác' });
         }
@@ -159,10 +159,10 @@ export const ContentController = {
       }
 
       const userRoles = req.user.cacQuyen || [req.user.vaiTro];
-      const isSales = userRoles.includes('BAN_HANG');
+      const isStaff = userRoles.includes('NHAN_VIEN');
       const isManager = userRoles.includes('QUAN_LY');
 
-      if (isSales && !isManager) {
+      if (isStaff && !isManager) {
         if (post.manvbanhang !== req.user.tenDangnhap) {
           return res.status(403).json({ message: 'Bạn không có quyền xóa bài viết của người khác' });
         }

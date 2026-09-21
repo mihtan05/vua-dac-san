@@ -48,22 +48,12 @@ export default function LoginPage() {
       // Redirect depending on user roles
       const userRoles = user.cacQuyen || [user.vaiTro];
       const hasAdminAccess = userRoles.some(role =>
-        ['QUAN_LY', 'BAN_HANG', 'KHO', 'CSKH', 'KE_TOAN'].includes(role)
+        ['QUAN_LY', 'NHAN_VIEN'].includes(role)
       );
 
       if (hasAdminAccess) {
         if (redirectUrl) {
           navigate(redirectUrl);
-        } else if (userRoles.includes('QUAN_LY')) {
-          navigate('/admin/dashboard');
-        } else if (userRoles.includes('BAN_HANG')) {
-          navigate('/admin/orders');
-        } else if (userRoles.includes('KHO')) {
-          navigate('/admin/products');
-        } else if (userRoles.includes('CSKH')) {
-          navigate('/admin/support');
-        } else if (userRoles.includes('KE_TOAN')) {
-          navigate('/admin/finance');
         } else {
           navigate('/admin/dashboard');
         }

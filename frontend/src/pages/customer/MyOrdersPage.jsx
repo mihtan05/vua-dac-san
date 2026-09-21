@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '../../api/customerApi';
 import { orderApi } from '../../api/orderApi';
-import { ShoppingBag, Eye, Calendar, DollarSign, CreditCard, Loader2, X } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { ShoppingBag, Eye, Calendar, DollarSign, CreditCard, Loader2, X, XCircle, Truck, AlertCircle } from 'lucide-react';
 import { formatVND } from '../../lib/utils';
 
 const statusColors = {
@@ -16,7 +17,149 @@ const statusColors = {
   'Đã hủy': 'bg-red-100 text-red-800 border border-red-200',
 };
 
-function CustomerOrderDetailModal({ orderId, onClose }) {
+const CANCEL_REASONS = [
+  'Đổi ý không muốn mua nữa',
+  'Muốn thay đổi địa chỉ nhận hàng / số điện thoại',
+  'Muốn thêm/bớt sản phẩm hoặc đổi sản phẩm khác',
+  'Tìm thấy giá tốt hơn ở nơi khác',
+  'Thời gian giao hàng dự kiến quá lâu',
+  'Lý do khác'
+];
+
+const canCancelOrder = (status) => {
+  return status === 'Chờ xác nhận' || status === 'Đã xác nhận' || status === 'Chờ thanh toán';
+};
+
+function CancelOrderModal({ order, onClose }) {
+  const queryClient = useQueryClient();
+  const [selectedReason, setSelectedReason] = useState(CANCEL_REASONS[0]);
+  const [customReason, setCustomReason] = useState('');
+
+  const cancelMutation = useMutation({
+    mutationFn: async ({ id, reason }) => {
+      return await orderApi.cancel(id, reason);
+    },
+    onSuccess: () => {
+      toast.success('Hủy đơn hàng thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+      if (order?.mahoadon) {
+        queryClient.invalidateQueries({ queryKey: ['customer-order-detail', order.mahoadon] });
+      }
+      onClose();
+    },
+    onError: (err) => {
+      const msg = err.response?.data?.message || 'Không thể hủy đơn hàng. Vui lòng thử lại.';
+      toast.error(msg);
+    }
+  });
+
+  if (!order) return null;
+
+  const handleConfirmCancel = (e) => {
+    e.preventDefault();
+    const finalReason = selectedReason === 'Lý do khác'
+      ? (customReason.trim() || 'Lý do khác')
+      : (customReason.trim() ? `${selectedReason}: ${customReason.trim()}` : selectedReason);
+
+    cancelMutation.mutate({
+      id: order.mahoadon,
+      reason: finalReason
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-brand-light pb-3">
+          <div className="flex items-center gap-2 text-rose-600">
+            <XCircle className="w-5 h-5" />
+            <h3 className="text-lg font-bold text-brand-dark">Hủy đơn hàng: <span className="text-rose-600">{order.mahoadon}</span></h3>
+          </div>
+          <button onClick={onClose} disabled={cancelMutation.isPending} className="text-gray-400 hover:text-gray-700 transition">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800 space-y-1">
+          <p className="font-semibold flex items-center gap-1.5">
+            <AlertCircle size={14} className="text-rose-600 shrink-0" />
+            Bạn có chắc chắn muốn hủy đơn hàng này?
+          </p>
+          <p className="text-rose-700 pl-5">
+            Sau khi hủy, số lượng hàng sẽ được hoàn trả lại kho và bạn không thể hoàn tác thao tác này.
+          </p>
+        </div>
+
+        <form onSubmit={handleConfirmCancel} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+              Vui lòng chọn lý do hủy đơn:
+            </label>
+            <div className="space-y-1.5">
+              {CANCEL_REASONS.map((r, i) => (
+                <label key={i} className="flex items-center gap-2.5 text-xs text-gray-700 cursor-pointer p-2.5 rounded-xl hover:bg-brand-bg transition border border-brand-light/60 has-[:checked]:border-brand-primary has-[:checked]:bg-brand-primary/10">
+                  <input
+                    type="radio"
+                    name="cancelReason"
+                    value={r}
+                    checked={selectedReason === r}
+                    onChange={() => setSelectedReason(r)}
+                    className="accent-brand-primary"
+                  />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">
+              {selectedReason === 'Lý do khác' ? 'Chi tiết lý do hủy (bắt buộc):' : 'Ghi chú thêm (tùy chọn):'}
+            </label>
+            <textarea
+              value={customReason}
+              onChange={(e) => setCustomReason(e.target.value)}
+              placeholder={selectedReason === 'Lý do khác' ? 'Vui lòng nhập lý do hủy chi tiết...' : 'Ghi chú thêm nếu có...'}
+              rows={3}
+              required={selectedReason === 'Lý do khác'}
+              className="w-full text-xs p-3 border border-brand-light rounded-xl focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-brand-light">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={cancelMutation.isPending}
+              className="px-4 py-2.5 rounded-xl border border-brand-light text-gray-600 text-xs font-bold hover:bg-brand-light transition"
+            >
+              Giữ lại đơn hàng
+            </button>
+            <button
+              type="submit"
+              disabled={cancelMutation.isPending}
+              className="px-5 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold hover:bg-rose-700 disabled:opacity-50 transition flex items-center gap-2 shadow-sm"
+            >
+              {cancelMutation.isPending ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4" />
+                  Đang xử lý hủy...
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4" />
+                  Xác nhận hủy đơn
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CustomerOrderDetailModal({ orderId, onClose, onCancelOrder }) {
   const { data: order, isLoading } = useQuery({
     queryKey: ['customer-order-detail', orderId],
     enabled: !!orderId,
@@ -26,11 +169,10 @@ function CustomerOrderDetailModal({ orderId, onClose }) {
     }
   });
 
-
   if (!orderId) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto space-y-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-brand-light pb-4">
           <h3 className="text-xl font-bold font-heading text-brand-dark">Đơn hàng: {orderId}</h3>
@@ -45,6 +187,23 @@ function CustomerOrderDetailModal({ orderId, onClose }) {
           <p className="text-center text-gray-400 py-8">Không thể tải thông tin chi tiết đơn hàng.</p>
         ) : (
           <div className="space-y-6">
+            {order.trangthaidh === 'Bàn giao vận chuyển' && (
+              <div className="bg-teal-50 border border-teal-200 text-teal-800 text-xs p-3 rounded-xl flex items-center gap-2">
+                <Truck size={16} className="text-teal-600 shrink-0" />
+                <span>Đơn hàng đã được bàn giao cho đơn vị vận chuyển nên không thể hủy. Vui lòng liên hệ bộ phận hỗ trợ nếu cần trợ giúp.</span>
+              </div>
+            )}
+
+            {order.trangthaidh === 'Đã hủy' && (
+              <div className="bg-red-50 border border-red-200 text-red-800 text-xs p-3 rounded-xl flex items-start gap-2">
+                <XCircle size={16} className="text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Đơn hàng này đã bị hủy.</span>
+                  {order.lydohuy && <p className="mt-0.5 text-red-700">Lý do hủy: {order.lydohuy}</p>}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4 text-xs bg-brand-bg/50 p-4 rounded-xl">
               <div><span className="text-gray-500">Ngày đặt:</span> <strong className="text-brand-dark">{new Date(order.ngaytaohoadon).toLocaleString('vi-VN')}</strong></div>
               <div><span className="text-gray-500">Tổng tiền thanh toán:</span> <strong className="text-brand-accent font-bold">{formatVND(order.tongtientt)}</strong></div>
@@ -81,10 +240,28 @@ function CustomerOrderDetailModal({ orderId, onClose }) {
                 </table>
               </div>
             </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-brand-light pt-4">
+              {canCancelOrder(order.trangthaidh) ? (
+                <button
+                  type="button"
+                  onClick={() => onCancelOrder(order)}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-rose-200 text-rose-600 font-bold hover:bg-rose-50 hover:border-rose-300 transition text-xs"
+                >
+                  <XCircle size={16} /> Hủy đơn hàng
+                </button>
+              ) : <div />}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="bg-brand-primary text-brand-dark font-bold px-6 py-2.5 rounded-xl hover:bg-brand-primary/90 transition text-xs"
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         )}
-
-        <button onClick={onClose} className="w-full bg-brand-primary text-brand-dark font-bold py-3 rounded-xl hover:bg-brand-primary/90 transition text-sm">Đóng</button>
       </div>
     </div>
   );
@@ -92,6 +269,7 @@ function CustomerOrderDetailModal({ orderId, onClose }) {
 
 export default function MyOrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['my-orders'],
@@ -100,7 +278,6 @@ export default function MyOrdersPage() {
       return Array.isArray(res.data) ? res.data : [];
     }
   });
-
 
   return (
     <div className="bg-brand-bg min-h-screen py-10">
@@ -127,46 +304,89 @@ export default function MyOrdersPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map(order => (
-              <div key={order.mahoadon} className="bg-white rounded-2xl border border-brand-light p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-brand-primary/40 transition duration-300">
-                
-                {/* Meta details */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-brand-dark text-base">{order.mahoadon}</span>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusColors[order.trangthaidh] || 'bg-gray-100 text-gray-700'}`}>
-                      {order.trangthaidh}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
-                    <div className="flex items-center gap-1.5"><Calendar size={14} /> {new Date(order.ngaytaohoadon || order.ngaymua || order.ngayMua || Date.now()).toLocaleDateString('vi-VN')}</div>
-                    <div className="flex items-center gap-1.5"><CreditCard size={14} /> {order.pthucthanhtoan || order.pthucThanhToan || 'COD'}</div>
-                    <div className="flex items-center gap-1.5"><DollarSign size={14} /> {order.trangthaitt || order.trangThaiTT || 'Chưa thanh toán'}</div>
-                  </div>
-                </div>
+            {orders.map(order => {
+              const cancellable = canCancelOrder(order.trangthaidh);
+              const isHandedOver = order.trangthaidh === 'Bàn giao vận chuyển';
+              const isCancelled = order.trangthaidh === 'Đã hủy';
 
-                {/* Amount and actions */}
-                <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 pt-4 md:pt-0 border-brand-light">
-                  <div className="text-right">
-                    <div className="text-[10px] text-gray-400">Tổng thanh toán</div>
-                    <div className="text-lg font-black text-brand-accent font-heading">{formatVND(order.tongtientt)}</div>
-                  </div>
+              return (
+                <div key={order.mahoadon} className="bg-white rounded-2xl border border-brand-light p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-brand-primary/40 transition duration-300">
                   
-                  <button
-                    onClick={() => setSelectedOrderId(order.mahoadon)}
-                    className="flex items-center gap-1.5 border border-brand-light text-brand-dark px-4 py-2 rounded-xl text-xs font-bold hover:bg-brand-primary hover:border-brand-primary transition"
-                  >
-                    <Eye size={14} /> Xem chi tiết
-                  </button>
-                </div>
+                  {/* Meta details */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-brand-dark text-base">{order.mahoadon}</span>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${statusColors[order.trangthaidh] || 'bg-gray-100 text-gray-700'}`}>
+                        {order.trangthaidh}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
+                      <div className="flex items-center gap-1.5"><Calendar size={14} /> {new Date(order.ngaytaohoadon || order.ngaymua || order.ngayMua || Date.now()).toLocaleDateString('vi-VN')}</div>
+                      <div className="flex items-center gap-1.5"><CreditCard size={14} /> {order.pthucthanhtoan || order.pthucThanhToan || 'COD'}</div>
+                      <div className="flex items-center gap-1.5"><DollarSign size={14} /> {order.trangthaitt || order.trangThaiTT || 'Chưa thanh toán'}</div>
+                    </div>
 
-              </div>
-            ))}
+                    {isCancelled && order.lydohuy && (
+                      <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-1.5 rounded-xl font-medium inline-block mt-1">
+                        Lý do hủy: {order.lydohuy}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Amount and actions */}
+                  <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-4 md:pt-0 border-brand-light">
+                    <div className="text-right">
+                      <div className="text-[10px] text-gray-400">Tổng thanh toán</div>
+                      <div className="text-lg font-black text-brand-accent font-heading">{formatVND(order.tongtientt)}</div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {cancellable && (
+                        <button
+                          type="button"
+                          onClick={() => setCancellingOrder(order)}
+                          className="flex items-center gap-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 px-3 py-2 rounded-xl text-xs font-bold transition"
+                          title="Hủy đơn hàng này"
+                        >
+                          <XCircle size={14} /> Hủy đơn
+                        </button>
+                      )}
+
+                      {isHandedOver && (
+                        <span className="flex items-center gap-1 text-[11px] font-medium text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1.5 rounded-xl" title="Đơn hàng đã bàn giao cho bên vận chuyển nên không thể hủy">
+                          <Truck size={13} /> Đã bàn giao
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrderId(order.mahoadon)}
+                        className="flex items-center gap-1.5 border border-brand-light text-brand-dark px-3.5 py-2 rounded-xl text-xs font-bold hover:bg-brand-primary hover:border-brand-primary transition"
+                      >
+                        <Eye size={14} /> Xem chi tiết
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      <CustomerOrderDetailModal orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />
+      <CustomerOrderDetailModal
+        orderId={selectedOrderId}
+        onClose={() => setSelectedOrderId(null)}
+        onCancelOrder={(order) => {
+          setCancellingOrder(order);
+        }}
+      />
+
+      <CancelOrderModal
+        order={cancellingOrder}
+        onClose={() => setCancellingOrder(null)}
+      />
     </div>
   );
 }

@@ -35,9 +35,9 @@ export function requireWarehouseRole(req, res, next) {
   }
 
   const roles = req.user.cacQuyen || [req.user.vaiTro];
-  if (roles.includes('KHO') || roles.includes('QUAN_LY') || req.user.vaiTro === 'KHO' || req.user.vaiTro === 'QUAN_LY') {
+  if (roles.includes('NHAN_VIEN') || roles.includes('KHO') || roles.includes('QUAN_LY') || req.user.vaiTro === 'KHO' || req.user.vaiTro === 'QUAN_LY') {
     return next();
   }
 
-  return res.status(403).json({ message: 'Không có quyền truy cập. Yêu cầu quyền bộ phận KHO hoặc QUAN_LY.' });
+  return res.status(403).json({ message: 'Không có quyền truy cập. Yêu cầu quyền NHAN_VIEN hoặc QUAN_LY.' });
 }

@@ -27,8 +27,8 @@ export const OrderModel = {
         countQuery += ` AND k.tenDangnhap = $${paramIndex}`;
         params.push(requestUser.tenDangnhap);
         paramIndex++;
-      } else if (roles.includes('BAN_HANG') && !roles.includes('QUAN_LY')) {
-        // Sales only see orders they created
+      } else if (roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
+        // Staff only see orders they created
         query += ` AND h.maNVBanHang = $${paramIndex}`;
         countQuery += ` AND h.maNVBanHang = $${paramIndex}`;
         params.push(requestUser.tenDangnhap);

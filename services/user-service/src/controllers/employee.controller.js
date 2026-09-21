@@ -59,7 +59,7 @@ export const EmployeeController = {
         await authApi.post('/internal/create-account', {
           tenDangnhap: predictedId,
           matKhau: defaultPassword,
-          vaiTro: chucVu // e.g. 'BAN_HANG', 'KHO', 'KE_TOAN'
+          vaiTro: chucVu // e.g. 'NHAN_VIEN'
         });
         authCreated = true;
       } catch (authErr) {

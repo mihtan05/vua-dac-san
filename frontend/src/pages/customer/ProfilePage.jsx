@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '../../api/customerApi';
 import { contentApi } from '../../api/contentApi';
-import { User, MessageSquare, Loader2, Save } from 'lucide-react';
+import { User, MessageSquare, Loader2, Save, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function ProfilePage() {
@@ -37,6 +37,19 @@ export default function ProfilePage() {
     ngaySinh: ''
   });
 
+  // State for password change
+  const [passwordData, setPasswordData] = useState({
+    matKhauCu: '',
+    matKhauMoi: '',
+    xacNhanMatKhau: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [passwordError, setPasswordError] = useState('');
+
   useEffect(() => {
     if (customer) {
       setFormData({
@@ -59,13 +72,67 @@ export default function ProfilePage() {
     }
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: (data) => customerApi.changePassword(data),
+    onSuccess: () => {
+      toast.success('Đổi mật khẩu thành công!');
+      setPasswordData({ matKhauCu: '', matKhauMoi: '', xacNhanMatKhau: '' });
+      setPasswordError('');
+    },
+    onError: (err) => {
+      const msg = err.response?.data?.message || 'Đổi mật khẩu thất bại';
+      setPasswordError(msg);
+      toast.error(msg);
+    }
+  });
+
   const handleUpdateInfo = (e) => {
     e.preventDefault();
     if (!formData.hoTen || !formData.sdt) {
       toast.error('Họ tên và Số điện thoại là bắt buộc');
       return;
     }
+    if (!/^\d{10}$/.test(formData.sdt)) {
+      toast.error('Số điện thoại phải gồm đúng 10 chữ số');
+      return;
+    }
+    if (formData.ngaySinh && formData.ngaySinh > '2008-12-31') {
+      toast.error('Bạn phải đủ 18 tuổi trở lên');
+      return;
+    }
     updateProfileMutation.mutate(formData);
+  };
+
+  const handleChangePassword = (e) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (!passwordData.matKhauCu) {
+      setPasswordError('Vui lòng nhập mật khẩu hiện tại');
+      return;
+    }
+    if (!passwordData.matKhauMoi) {
+      setPasswordError('Vui lòng nhập mật khẩu mới');
+      return;
+    }
+    if (passwordData.matKhauMoi !== passwordData.xacNhanMatKhau) {
+      setPasswordError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      return;
+    }
+    if (passwordData.matKhauMoi.length < 8) {
+      setPasswordError('Mật khẩu mới phải có ít nhất 8 ký tự');
+      return;
+    }
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(passwordData.matKhauMoi)) {
+      setPasswordError('Mật khẩu mới phải bao gồm chữ hoa, chữ thường và số');
+      return;
+    }
+
+    changePasswordMutation.mutate({
+      matKhauCu: passwordData.matKhauCu,
+      matKhauMoi: passwordData.matKhauMoi
+    });
   };
 
   if (isLoadingProfile) {
@@ -87,23 +154,29 @@ export default function ProfilePage() {
   return (
     <div className="bg-brand-bg min-h-screen py-10">
       <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-8">
-        
+
         {/* Sidebar Tabs */}
         <div className="col-span-1 space-y-2">
           <button
             onClick={() => setActiveTab('info')}
-            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === 'info' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
-            }`}
+            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'info' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
+              }`}
           >
             <User size={20} /> Thông tin cá nhân
           </button>
-          
+
+          <button
+            onClick={() => setActiveTab('password')}
+            className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'password' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
+              }`}
+          >
+            <Lock size={20} /> Đổi mật khẩu
+          </button>
+
           <button
             onClick={() => setActiveTab('requests')}
-            className={`w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${
-              activeTab === 'requests' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
-            }`}
+            className={`w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'requests' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
+              }`}
           >
             <div className="flex items-center gap-3">
               <MessageSquare size={20} /> Phản hồi CSKH
@@ -116,7 +189,7 @@ export default function ProfilePage() {
 
         {/* Content Area */}
         <div className="col-span-1 md:col-span-3 bg-white rounded-3xl border border-brand-light p-8 shadow-sm">
-          
+
           {/* TAB: INFO */}
           {activeTab === 'info' && (
             <div className="space-y-6">
@@ -129,7 +202,7 @@ export default function ProfilePage() {
                   <input
                     type="text"
                     value={formData.hoTen}
-                    onChange={(e) => setFormData({...formData, hoTen: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, hoTen: e.target.value })}
                     className="w-full px-4 py-3 bg-brand-bg rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary"
                   />
                 </div>
@@ -137,10 +210,22 @@ export default function ProfilePage() {
                   <label className="block text-sm font-bold text-brand-dark mb-2">Số điện thoại *</label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={10}
                     value={formData.sdt}
-                    onChange={(e) => setFormData({...formData, sdt: e.target.value})}
-                    className="w-full px-4 py-3 bg-brand-bg rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      setFormData({ ...formData, sdt: val });
+                    }}
+                    placeholder="Nhập 10 chữ số"
+                    className={`w-full px-4 py-3 bg-brand-bg rounded-xl border focus:outline-none ${formData.sdt && !/^\d{10}$/.test(formData.sdt)
+                        ? 'border-red-400 focus:border-red-500'
+                        : 'border-brand-light focus:border-brand-primary'
+                      }`}
                   />
+                  {formData.sdt && !/^\d{10}$/.test(formData.sdt) && (
+                    <p className="text-xs text-red-500 mt-1">Số điện thoại phải gồm đúng 10 chữ số</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-brand-dark mb-2">Email</label>
@@ -157,9 +242,11 @@ export default function ProfilePage() {
                   <input
                     type="date"
                     value={formData.ngaySinh}
-                    onChange={(e) => setFormData({...formData, ngaySinh: e.target.value})}
+                    max="2008-12-31"
+                    onChange={(e) => setFormData({ ...formData, ngaySinh: e.target.value })}
                     className="w-full px-4 py-3 bg-brand-bg rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Phải đủ 18 tuổi trở lên</p>
                 </div>
 
                 <div className="pt-4">
@@ -176,6 +263,100 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {/* TAB: PASSWORD */}
+          {activeTab === 'password' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold text-brand-dark font-heading border-b border-brand-light pb-4">
+                Đổi mật khẩu
+              </h2>
+              <form onSubmit={handleChangePassword} className="space-y-5 max-w-2xl">
+                {passwordError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                    {passwordError}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-sm font-bold text-brand-dark mb-2">Mật khẩu hiện tại *</label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.current ? 'text' : 'password'}
+                      value={passwordData.matKhauCu}
+                      onChange={(e) => setPasswordData({ ...passwordData, matKhauCu: e.target.value })}
+                      placeholder="Nhập mật khẩu hiện tại"
+                      className="w-full px-4 py-3 bg-brand-bg rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.current ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-brand-dark mb-2">Mật khẩu mới *</label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.new ? 'text' : 'password'}
+                      value={passwordData.matKhauMoi}
+                      onChange={(e) => setPasswordData({ ...passwordData, matKhauMoi: e.target.value })}
+                      placeholder="Nhập mật khẩu mới"
+                      className="w-full px-4 py-3 bg-brand-bg rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.new ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Tối thiểu 8 ký tự, bao gồm chữ hoa, chữ thường và số</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-brand-dark mb-2">Xác nhận mật khẩu mới *</label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      value={passwordData.xacNhanMatKhau}
+                      onChange={(e) => setPasswordData({ ...passwordData, xacNhanMatKhau: e.target.value })}
+                      placeholder="Nhập lại mật khẩu mới"
+                      className={`w-full px-4 py-3 bg-brand-bg rounded-xl border focus:outline-none pr-12 ${passwordData.xacNhanMatKhau && passwordData.matKhauMoi !== passwordData.xacNhanMatKhau
+                          ? 'border-red-400 focus:border-red-500'
+                          : 'border-brand-light focus:border-brand-primary'
+                        }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  {passwordData.xacNhanMatKhau && passwordData.matKhauMoi !== passwordData.xacNhanMatKhau && (
+                    <p className="text-xs text-red-500 mt-1">Mật khẩu xác nhận không khớp</p>
+                  )}
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={changePasswordMutation.isPending}
+                    className="flex items-center gap-2 bg-brand-dark text-white font-bold px-8 py-3 rounded-xl hover:bg-brand-dark/90 transition-all disabled:opacity-50"
+                  >
+                    {changePasswordMutation.isPending ? <Loader2 className="animate-spin" size={20} /> : <Lock size={20} />}
+                    Đổi mật khẩu
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
           {/* TAB: REQUESTS */}
           {activeTab === 'requests' && (
             <div className="space-y-6">
@@ -184,7 +365,7 @@ export default function ProfilePage() {
                   Yêu cầu & Phản hồi từ CSKH
                 </h2>
               </div>
-              
+
               {myRequests.length === 0 ? (
                 <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                   <p className="text-sm text-gray-500">Bạn chưa gửi yêu cầu hỗ trợ nào.</p>
@@ -192,9 +373,8 @@ export default function ProfilePage() {
               ) : (
                 <div className="space-y-4">
                   {myRequests.map((req) => (
-                    <div key={req.mayeucau} className={`p-5 border rounded-2xl space-y-3 transition ${
-                      req.trangthai === 'Đã xử lý' ? 'border-brand-primary bg-brand-bg/50' : 'border-brand-light hover:border-brand-primary'
-                    }`}>
+                    <div key={req.mayeucau} className={`p-5 border rounded-2xl space-y-3 transition ${req.trangthai === 'Đã xử lý' ? 'border-brand-primary bg-brand-bg/50' : 'border-brand-light hover:border-brand-primary'
+                      }`}>
                       <div className="flex flex-wrap gap-2 justify-between items-start">
                         <div>
                           <span className="text-xs font-bold px-2 py-1 bg-brand-light rounded-lg text-brand-dark mr-2">
@@ -204,22 +384,21 @@ export default function ProfilePage() {
                             Gửi ngày: {new Date(req.ngaytao).toLocaleString('vi-VN')}
                           </span>
                         </div>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                          req.trangthai === 'Đã xử lý' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                        }`}>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${req.trangthai === 'Đã xử lý' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
                           {req.trangthai}
                         </span>
                       </div>
-                      
+
                       <div className="text-sm text-brand-dark mt-2 bg-white border border-gray-100 p-4 rounded-xl">
-                        <strong className="block text-xs text-gray-400 uppercase mb-1">Nội dung bạn gửi:</strong> 
+                        <strong className="block text-xs text-gray-400 uppercase mb-1">Nội dung bạn gửi:</strong>
                         {req.noidungkh}
                       </div>
 
                       {req.noidungphanhoi ? (
                         <div className="text-sm bg-brand-primary/10 text-brand-dark p-4 rounded-xl border border-brand-primary/20 relative overflow-hidden">
                           <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-primary"></div>
-                          <strong className="block text-xs text-brand-primary uppercase mb-1">Admin / CSKH Phản hồi:</strong> 
+                          <strong className="block text-xs text-brand-primary uppercase mb-1">Admin / CSKH Phản hồi:</strong>
                           {req.noidungphanhoi}
                           <div className="text-xs text-gray-500 mt-2">
                             Vào lúc: {new Date(req.ngayxuly).toLocaleString('vi-VN')}

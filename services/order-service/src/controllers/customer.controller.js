@@ -193,7 +193,7 @@ export const CustomerController = {
 
       // Security Check: Customer can only add address for themselves
       const roles = req.user.cacQuyen || [req.user.vaiTro];
-      if (roles.includes('KHACH_HANG') && !roles.includes('BAN_HANG') && !roles.includes('QUAN_LY')) {
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
         const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
         if (!customerRecord || customerRecord.makhachhang !== customerId) {
           return res.status(403).json({ message: 'Bạn không có quyền thêm địa chỉ cho tài khoản khác' });

@@ -17,19 +17,20 @@ router.get('/promos/available', OrderController.getAvailablePromos);
 router.use(authenticate);
 
 // List and Create
-router.get('/', requireRole(['BAN_HANG', 'QUAN_LY', 'KHACH_HANG']), OrderController.getOrders);
-router.post('/', requireRole(['BAN_HANG', 'KHACH_HANG']), OrderController.createOrder);
+router.get('/', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), OrderController.getOrders);
+router.post('/', requireRole(['NHAN_VIEN', 'KHACH_HANG']), OrderController.createOrder);
 
-// Promotions CRUD (Admin only)
-router.get('/promos', requireRole(['BAN_HANG', 'QUAN_LY', 'KE_TOAN']), OrderController.getAllPromos);
-router.post('/promos', requireRole(['QUAN_LY', 'KE_TOAN']), OrderController.createPromo);
-router.put('/promos/:code', requireRole(['QUAN_LY', 'KE_TOAN']), OrderController.updatePromo);
+// Promotions CRUD (Manager only)
+router.get('/promos', requireRole(['QUAN_LY']), OrderController.getAllPromos);
+router.post('/promos', requireRole(['QUAN_LY']), OrderController.createPromo);
+router.put('/promos/:code', requireRole(['QUAN_LY']), OrderController.updatePromo);
 router.delete('/promos/:code', requireRole(['QUAN_LY']), OrderController.deletePromo);
 
 // Detail, Status, Cancel, Invoice
-router.get('/:id', requireRole(['BAN_HANG', 'QUAN_LY', 'KHACH_HANG']), OrderController.getOrderById);
-router.patch('/:id/status', requireRole(['BAN_HANG', 'QUAN_LY', 'KHO']), OrderController.updateOrderStatus);
-router.delete('/:id/cancel', requireRole(['BAN_HANG', 'QUAN_LY', 'KHACH_HANG']), OrderController.cancelOrder);
-router.get('/:id/invoice', requireRole(['BAN_HANG', 'QUAN_LY', 'KHACH_HANG']), OrderController.getInvoice);
+router.get('/:id', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), OrderController.getOrderById);
+router.patch('/:id/status', requireRole(['NHAN_VIEN', 'QUAN_LY']), OrderController.updateOrderStatus);
+router.delete('/:id/cancel', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), OrderController.cancelOrder);
+router.post('/:id/cancel', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), OrderController.cancelOrder);
+router.get('/:id/invoice', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), OrderController.getInvoice);
 
 export default router;

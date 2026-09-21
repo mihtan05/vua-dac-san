@@ -28,14 +28,14 @@ export default function AdminLayout() {
   const userRoles = user?.cacQuyen || [user?.vaiTro || ''];
 
   const allMenuItems = [
-    { path: '/admin/dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['QUAN_LY'] },
-    { path: '/admin/orders', name: 'Quản lý Đơn hàng', icon: ShoppingBag, roles: ['BAN_HANG', 'QUAN_LY'] },
-    { path: '/admin/products', name: 'Sản phẩm & Kho', icon: Package, roles: ['KHO', 'QUAN_LY'] },
-    { path: '/admin/customers', name: 'Khách hàng', icon: Users, roles: ['BAN_HANG', 'QUAN_LY'] },
-    { path: '/admin/posts', name: 'Bài viết tin tức', icon: BookOpen, roles: ['BAN_HANG', 'QUAN_LY'] },
-    { path: '/admin/support', name: 'Chăm sóc khách hàng', icon: Headphones, roles: ['CSKH', 'QUAN_LY'] },
-    { path: '/admin/finance', name: 'Tài chính & Lương', icon: CircleDollarSign, roles: ['KE_TOAN', 'QUAN_LY'] },
-    { path: '/admin/promotions', name: 'Mã giảm giá', icon: Ticket, roles: ['BAN_HANG', 'KE_TOAN', 'QUAN_LY'] },
+    { path: '/admin/dashboard', name: 'Dashboard', icon: LayoutDashboard, roles: ['QUAN_LY', 'NHAN_VIEN'] },
+    { path: '/admin/orders', name: 'Quản lý Đơn hàng', icon: ShoppingBag, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/products', name: 'Sản phẩm & Kho', icon: Package, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/customers', name: 'Khách hàng', icon: Users, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/posts', name: 'Bài viết tin tức', icon: BookOpen, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/support', name: 'Chăm sóc khách hàng', icon: Headphones, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/finance', name: 'Tài chính & Lương', icon: CircleDollarSign, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/promotions', name: 'Mã giảm giá', icon: Ticket, roles: ['QUAN_LY'] },
     { path: '/admin/employees', name: 'Quản lý Nhân viên', icon: UserSquare2, roles: ['QUAN_LY'] },
     { path: '/admin/suppliers', name: 'Nhà cung cấp', icon: Truck, roles: ['QUAN_LY'] },
   ];

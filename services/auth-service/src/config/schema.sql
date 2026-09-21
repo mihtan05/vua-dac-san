@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS TAI_KHOAN (
     tenDangnhap VARCHAR(50) PRIMARY KEY,
     matKhau VARCHAR(255) NOT NULL, -- bcrypt hash
-    vaiTro VARCHAR(20) NOT NULL CHECK (vaiTro IN ('QUAN_LY', 'BAN_HANG', 'KHO', 'KE_TOAN', 'CSKH', 'KHACH_HANG')),
+    vaiTro VARCHAR(20) NOT NULL CHECK (vaiTro IN ('QUAN_LY', 'NHAN_VIEN', 'BAN_HANG', 'KHO', 'KE_TOAN', 'CSKH', 'KHACH_HANG')),
     trangThai INT DEFAULT 1 CHECK (trangThai IN (0, 1)), -- 1: active, 0: locked
     lanDangNhapSai INT DEFAULT 0,
     thoiGianKhoa TIMESTAMP NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS TAI_KHOAN (
 -- Table: PHAN_QUYEN (bảng phân quyền nhiều role cho một nhân viên)
 CREATE TABLE IF NOT EXISTS PHAN_QUYEN (
     maNhanVien VARCHAR(20) NOT NULL,
-    vaiTro VARCHAR(20) NOT NULL CHECK (vaiTro IN ('QUAN_LY', 'BAN_HANG', 'KHO', 'KE_TOAN', 'CSKH', 'KHACH_HANG')),
+    vaiTro VARCHAR(20) NOT NULL CHECK (vaiTro IN ('QUAN_LY', 'NHAN_VIEN', 'BAN_HANG', 'KHO', 'KE_TOAN', 'CSKH', 'KHACH_HANG')),
     ngayGan TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (maNhanVien, vaiTro)
 );

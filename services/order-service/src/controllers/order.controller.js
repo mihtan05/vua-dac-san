@@ -113,14 +113,14 @@ export const OrderController = {
   async createOrder(req, res) {
     console.log('Order payload:', req.body);
     const { maKhachHang, maDiaChi, sanPham, maKhuyenMai, pThucThanhToan } = req.body;
-    
+
     if (!maKhachHang || !maDiaChi || !sanPham || !Array.isArray(sanPham) || sanPham.length === 0 || !pThucThanhToan) {
       return res.status(400).json({ message: 'Thiếu thông tin bắt buộc để tạo đơn hàng' });
     }
 
     // Security Check: Customer can only buy for themselves
     const roles = req.user.cacQuyen || [req.user.vaiTro];
-    if (roles.includes('KHACH_HANG') && !roles.includes('BAN_HANG') && !roles.includes('QUAN_LY')) {
+    if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
       const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
       if (!customerRecord || customerRecord.makhachhang !== maKhachHang) {
         return res.status(403).json({ message: 'Bạn không có quyền tạo đơn hàng cho tài khoản khác' });
@@ -161,8 +161,8 @@ export const OrderController = {
         }
 
         if (product.soluongton < item.soLuong) {
-          return res.status(400).json({ 
-            message: `Sản phẩm [${product.tensanpham}] không đủ hàng trong kho (Còn lại: ${product.soluongton}, yêu cầu: ${item.soLuong})` 
+          return res.status(400).json({
+            message: `Sản phẩm [${product.tensanpham}] không đủ hàng trong kho (Còn lại: ${product.soluongton}, yêu cầu: ${item.soLuong})`
           });
         }
 
@@ -205,8 +205,8 @@ export const OrderController = {
       }
 
       if (tongTienSP < parseFloat(promo.dontoithieu)) {
-        return res.status(400).json({ 
-          message: `Đơn hàng không đạt giá trị tối thiểu để áp dụng mã này (Yêu cầu: ${parseFloat(promo.dontoithieu)} VND)` 
+        return res.status(400).json({
+          message: `Đơn hàng không đạt giá trị tối thiểu để áp dụng mã này (Yêu cầu: ${parseFloat(promo.dontoithieu)} VND)`
         });
       }
 
@@ -239,7 +239,7 @@ export const OrderController = {
       const newOrder = await OrderModel.createOrder({
         maHoadon,
         maKhachHang,
-        maNVBanHang: roles.some(r => ['BAN_HANG', 'QUAN_LY'].includes(r)) ? req.user.tenDangnhap : null,
+        maNVBanHang: roles.some(r => ['NHAN_VIEN', 'QUAN_LY'].includes(r)) ? req.user.tenDangnhap : null,
         maDiaChi,
         pThucThanhToan,
         maKhuyenMai,
@@ -259,8 +259,8 @@ export const OrderController = {
         await productApi.post('/reserve-stock', { items: orderItems });
       } catch (stockErr) {
         console.error('Failed to reserve stock:', stockErr.message);
-        const errorMsg = stockErr.response && stockErr.response.data && stockErr.response.data.message 
-          ? stockErr.response.data.message 
+        const errorMsg = stockErr.response && stockErr.response.data && stockErr.response.data.message
+          ? stockErr.response.data.message
           : 'Lỗi trừ tồn kho sản phẩm';
         throw new Error(errorMsg);
       }
@@ -291,7 +291,7 @@ export const OrderController = {
 
       // Security check: Customer can only view their own order
       const roles = req.user.cacQuyen || [req.user.vaiTro];
-      if (roles.includes('KHACH_HANG') && !roles.includes('BAN_HANG') && !roles.includes('QUAN_LY')) {
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
         const customer = await CustomerModel.findByUsername(req.user.tenDangnhap);
         if (!customer || customer.makhachhang !== order.makhachhang) {
           return res.status(403).json({ message: 'Bạn không có quyền truy cập đơn hàng của tài khoản khác' });
@@ -350,8 +350,8 @@ export const OrderController = {
 
       const allowedNext = statusFlow[currentStatus] || [];
       if (!allowedNext.includes(trangThaiMoi)) {
-        return res.status(400).json({ 
-          message: `Luồng chuyển trạng thái không hợp lệ. Trạng thái hiện tại: [${currentStatus}] không thể chuyển trực tiếp sang [${trangThaiMoi}].` 
+        return res.status(400).json({
+          message: `Luồng chuyển trạng thái không hợp lệ. Trạng thái hiện tại: [${currentStatus}] không thể chuyển trực tiếp sang [${trangThaiMoi}].`
         });
       }
 
@@ -363,7 +363,7 @@ export const OrderController = {
         await OrderModel.addOrderHistory(id, trangThaiMoi, ghiChu || `Cập nhật trạng thái sang ${trangThaiMoi}`, client);
 
         await client.query('COMMIT');
-        
+
         // Publish event to RabbitMQ if order is successfully completed
         if (trangThaiMoi === 'Giao thành công') {
           publishOrderCompleted(updated.mahoadon, parseFloat(updated.tongtientt)).catch((err) => {
@@ -389,10 +389,9 @@ export const OrderController = {
   async cancelOrder(req, res) {
     try {
       const { id } = req.params;
-      const { lyDoHuy } = req.body;
-
-      if (!lyDoHuy) {
-        return res.status(400).json({ message: 'Lý do hủy đơn hàng là bắt buộc' });
+      let { lyDoHuy } = req.body || {};
+      if (!lyDoHuy || !lyDoHuy.trim()) {
+        lyDoHuy = 'Khách hàng yêu cầu hủy đơn';
       }
 
       const order = await OrderModel.getOrderById(id);
@@ -402,18 +401,18 @@ export const OrderController = {
 
       // Security Check: Customer can only cancel their own order
       const roles = req.user.cacQuyen || [req.user.vaiTro];
-      if (roles.includes('KHACH_HANG') && !roles.includes('BAN_HANG') && !roles.includes('QUAN_LY')) {
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
         const customer = await CustomerModel.findByUsername(req.user.tenDangnhap);
         if (!customer || customer.makhachhang !== order.makhachhang) {
           return res.status(403).json({ message: 'Bạn không có quyền hủy đơn hàng của tài khoản khác' });
         }
-        if (order.trangthaidh !== 'Chờ xác nhận' && order.trangthaidh !== 'Chờ thanh toán') {
-          return res.status(400).json({ message: 'Khách hàng chỉ được tự hủy đơn hàng khi trạng thái là Chờ xác nhận hoặc Chờ thanh toán' });
+        if (order.trangthaidh !== 'Chờ xác nhận' && order.trangthaidh !== 'Chờ thanh toán' && order.trangthaidh !== 'Đã xác nhận') {
+          return res.status(400).json({ message: 'Khách hàng chỉ được tự hủy đơn hàng khi trạng thái là Chờ xác nhận hoặc Đã xác nhận' });
         }
       }
 
       const currentStatus = order.trangthaidh;
-      if (currentStatus === 'Bàn giao vận chuyển' || currentStatus === 'Đang giao' || currentStatus === 'Giao thành công') {
+      if (currentStatus === 'Bàn giao vận chuyển' || currentStatus === 'Đang giao' || currentStatus === 'Giao thành công' || currentStatus === 'Giao thất bại') {
         return res.status(400).json({ message: 'Không thể hủy đơn hàng sau khi đã bàn giao vận chuyển' });
       }
       if (currentStatus === 'Đã hủy') {
@@ -478,7 +477,7 @@ export const OrderController = {
 
       // Security check
       const roles = req.user.cacQuyen || [req.user.vaiTro];
-      if (roles.includes('KHACH_HANG') && !roles.includes('BAN_HANG') && !roles.includes('QUAN_LY')) {
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
         const customer = await CustomerModel.findByUsername(req.user.tenDangnhap);
         if (!customer || customer.makhachhang !== order.makhachhang) {
           return res.status(403).json({ message: 'Bạn không có quyền tải hóa đơn của tài khoản khác' });
@@ -486,7 +485,7 @@ export const OrderController = {
       }
 
       const items = await OrderModel.getOrderItems(id);
-      
+
       // Fetch latest names from product service if possible
       const itemsWithDetail = await Promise.all(items.map(async (item) => {
         try {

@@ -1,0 +1,819 @@
+{
+  "info": {
+    "name": "Vua Đặc Sản - Integration Tests",
+    "description": "Bộ kiểm thử tích hợp (Integration Tests) cho hệ thống Microservices Vua Đặc Sản:\n1. Kiểm thử phân quyền RBAC giữa Nhân viên (NHAN_VIEN) và Quản lý (QUAN_LY)\n2. Kiểm thử tích hợp User-Service <-> Auth-Service (Tạo NV mới & Tự sinh tài khoản đăng nhập)\n3. Kiểm thử luồng Quản lý Sản phẩm & Đơn hàng\n4. Kiểm thử luồng Khách hàng tìm kiếm & lọc sản phẩm (Search & Filter)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost/api",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "staffToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "newCreatedStaffUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "firstSearchProductId",
+      "value": "SP002",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Phân quyền RBAC (Nhân viên vs Quản lý)",
+      "item": [
+        {
+          "name": "1.1 Đăng nhập Quản lý (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.1 Đăng nhập Admin thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"accessToken\");",
+                  "    pm.expect(data.user.vaiTro).to.eql(\"QUAN_LY\");",
+                  "    pm.collectionVariables.set(\"adminToken\", data.accessToken);",
+                  "    pm.environment.set(\"adminToken\", data.accessToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_hoac_sdt\": \"admin\",\n  \"matKhau\": \"Admin@123456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.2 Đăng nhập Nhân viên (Staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.2 Đăng nhập Nhân viên thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"accessToken\");",
+                  "    pm.expect(data.user.vaiTro).to.eql(\"NHAN_VIEN\");",
+                  "    pm.collectionVariables.set(\"staffToken\", data.accessToken);",
+                  "    pm.environment.set(\"staffToken\", data.accessToken);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_hoac_sdt\": \"nhanvien\",\n  \"matKhau\": \"Nhanvien@123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.3 [Nhân viên] Xem danh sách đơn hàng (Được phép: 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.3 Nhân viên được phép xem đơn hàng (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/orders/",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "orders",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.4 [Nhân viên] Truy cập Mã giảm giá (Bị chặn: 403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.4 Nhân viên KHÔNG được phép xem Mã giảm giá (403 Forbidden)\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/orders/promos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "promos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.5 [Quản lý] Truy cập Mã giảm giá (Được phép: 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.5 Quản lý được phép xem Mã giảm giá (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/orders/promos",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "promos"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.6 [Nhân viên] Truy cập Quản lý nhân viên (Bị chặn: 403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.6 Nhân viên KHÔNG được phép vào Quản lý nhân viên (403 Forbidden)\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/users/employees",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "users",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.7 [Quản lý] Truy cập Quản lý nhân viên (Được phép: 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.7 Quản lý được phép vào Quản lý nhân viên (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/users/employees",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "users",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.8 [Nhân viên] Truy cập Nhà cung cấp (Bị chặn: 403 Forbidden)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.8 Nhân viên KHÔNG được phép vào Nhà cung cấp (403 Forbidden)\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/users/suppliers",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "users",
+                "suppliers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.9 [Quản lý] Truy cập Nhà cung cấp (Được phép: 200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"1.9 Quản lý được phép vào Nhà cung cấp (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/users/suppliers",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "users",
+                "suppliers"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Tích hợp User-Service <-> Auth-Service (Tạo NV mới & Login)",
+      "item": [
+        {
+          "name": "2.1 [Quản lý] Tạo nhân viên mới",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var rand = Math.floor(1000 + Math.random() * 9000);",
+                  "pm.collectionVariables.set(\"tempEmail\", \"test.nv\" + rand + \"@vuadacsan.com\");",
+                  "pm.collectionVariables.set(\"tempPhone\", \"098\" + rand + \"888\");",
+                  "pm.collectionVariables.set(\"tempCccd\", \"079095\" + rand + \"99\");"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"2.1 User-service tạo nhân viên thành công (200 hoặc 201)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "    var res = pm.response.json();",
+                  "    var emp = res.employee || res.data || res;",
+                  "    var username = emp.tenDangnhap || emp.tendangnhap || emp.maNhanVien || emp.manhanvien;",
+                  "    pm.expect(username).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set(\"newCreatedStaffUsername\", username);",
+                  "    pm.environment.set(\"newCreatedStaffUsername\", username);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hoTen\": \"Nhân viên Test Integration\",\n  \"sdt\": \"{{tempPhone}}\",\n  \"email\": \"{{tempEmail}}\",\n  \"chucVu\": \"NHAN_VIEN\",\n  \"ngaySinh\": \"1996-08-15\",\n  \"cccd\": \"{{tempCccd}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/api/users/employees",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "users",
+                "employees"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2.2 Đăng nhập bằng tài khoản nhân viên vừa tạo (Auth-Service xác thực)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"2.2 Đăng nhập thành công bằng tài khoản do User-service tự sinh (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var data = pm.response.json();",
+                  "    pm.expect(data).to.have.property(\"accessToken\");",
+                  "    pm.expect(data.user.vaiTro).to.eql(\"NHAN_VIEN\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_hoac_sdt\": \"{{newCreatedStaffUsername}}\",\n  \"matKhau\": \"Abc@123456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/api/auth/login",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Tích hợp Quản lý Sản phẩm qua Gateway",
+      "item": [
+        {
+          "name": "3.1 [Nhân viên] Tạo sản phẩm mới (POST /api/products/)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"3.1 Tạo sản phẩm mới thành công (201 Created)\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenSanpham\": \"Kẹo Dừa Bến Tre Sầu Riêng Lá Dứa\",\n  \"maDanhMuc\": \"DM001\",\n  \"giaDon\": 45000,\n  \"donViTinh\": \"Hộp\",\n  \"motaSanpham\": \"Kẹo dừa béo ngậy thơm lừng đặc sản xứ dừa Bến Tre.\",\n  \"hanSuDung\": \"2027-01-01\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost/api/products/",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "3.2 [Nhân viên] Kiểm tra sản phẩm sắp hết hạn",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"3.2 Lấy danh sách cảnh báo hạn sử dụng thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost/api/products/expiry-warning",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                "expiry-warning"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Luồng Khách hàng tìm kiếm sản phẩm (Search & Filter)",
+      "item": [
+        {
+          "name": "4.1 [Khách hàng] Tìm kiếm theo từ khóa (?search=Bánh)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"4.1 Tìm kiếm trả về thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var res = pm.response.json();",
+                  "    pm.expect(res).to.have.property(\"data\");",
+                  "    pm.expect(res.data).to.be.an(\"array\");",
+                  "    pm.expect(res.total).to.be.above(0);",
+                  "    // Lưu mã sản phẩm đầu tiên tìm được để test xem chi tiết ở request sau",
+                  "    var firstId = res.data[0].masanpham;",
+                  "    pm.collectionVariables.set(\"firstSearchProductId\", firstId);",
+                  "    pm.environment.set(\"firstSearchProductId\", firstId);",
+                  "});",
+                  "",
+                  "pm.test(\"4.1 Tất cả sản phẩm tìm thấy đều khớp từ khóa Bánh\", function () {",
+                  "    var res = pm.response.json();",
+                  "    res.data.forEach(function (prod) {",
+                  "        var nameLower = (prod.tensanpham || \"\").toLowerCase();",
+                  "        var idLower = (prod.masanpham || \"\").toLowerCase();",
+                  "        var match = nameLower.includes(\"bánh\") || idLower.includes(\"bánh\");",
+                  "        pm.expect(match).to.be.true;",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost/api/products/?search=Bánh",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "Bánh"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.2 [Khách hàng] Lọc theo danh mục (?maDanhMuc=DM002)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"4.2 Lọc theo danh mục thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var res = pm.response.json();",
+                  "    pm.expect(res.data).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"4.2 Toàn bộ sản phẩm đều thuộc danh mục DM002\", function () {",
+                  "    var res = pm.response.json();",
+                  "    res.data.forEach(function (prod) {",
+                  "        pm.expect(prod.madanhmuc).to.eql(\"DM002\");",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost/api/products/?maDanhMuc=DM002",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "maDanhMuc",
+                  "value": "DM002"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.3 [Khách hàng] Lọc theo vùng miền (?vungMien=Miền Bắc)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"4.3 Lọc theo vùng miền thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var res = pm.response.json();",
+                  "    pm.expect(res.data).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"4.3 Toàn bộ sản phẩm đều có xuất xứ Miền Bắc\", function () {",
+                  "    var res = pm.response.json();",
+                  "    res.data.forEach(function (prod) {",
+                  "        pm.expect(prod.vungmien).to.eql(\"Miền Bắc\");",
+                  "    });",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost/api/products/?vungMien=Miền Bắc",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "vungMien",
+                  "value": "Miền Bắc"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.4 [Khách hàng] Tìm từ khóa không tồn tại (Kết quả rỗng)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"4.4 Tìm kiếm không có kết quả vẫn trả về 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var res = pm.response.json();",
+                  "    pm.expect(res.total).to.eql(0);",
+                  "    pm.expect(res.data).to.be.an(\"array\").that.is.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost/api/products/?search=SanphamKhongTonTai9999",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                ""
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "SanphamKhongTonTai9999"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.5 [Khách hàng] Xem chi tiết sản phẩm tìm được (/products/:id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"4.5 Lấy chi tiết sản phẩm thành công (200 OK)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var prod = pm.response.json();",
+                  "    pm.expect(prod).to.have.property(\"masanpham\");",
+                  "    pm.expect(prod).to.have.property(\"tensanpham\");",
+                  "    pm.expect(prod).to.have.property(\"giadon\");",
+                  "    pm.expect(prod).to.have.property(\"trangthai\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost/api/products/SP002",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "path": [
+                "api",
+                "products",
+                "SP002"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

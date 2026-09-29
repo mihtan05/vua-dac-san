@@ -12,4 +12,5 @@ export const customerApi = {
   register: (data) => api.post('/orders/customers/register', data),
   verifyOtp: (data) => api.post('/orders/customers/verify-otp', data),
   changePassword: (data) => api.post('/auth/change-password', data),
+  verifyPassword: (data) => api.post('/auth/verify-password', data),
 };

@@ -1,7 +1,23 @@
 import { create } from 'zustand';
 import { toast } from 'react-toastify';
 
-const CART_KEY = 'vds_cart';
+const CART_KEY_PREFIX = 'vds_cart_';
+
+/**
+ * Get the cart localStorage key for the current logged-in user.
+ * Falls back to a guest key if no user is logged in.
+ */
+const getCartKey = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && user.tenDangnhap) {
+      return `${CART_KEY_PREFIX}${user.tenDangnhap}`;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return `${CART_KEY_PREFIX}guest`;
+};
 
 /**
  * Normalize a product from API response (lowercase keys) into the
@@ -20,14 +36,14 @@ const normalizeProduct = (product) => ({
 
 const readFromStorage = () => {
   try {
-    return JSON.parse(localStorage.getItem(CART_KEY)) || [];
+    return JSON.parse(localStorage.getItem(getCartKey())) || [];
   } catch {
     return [];
   }
 };
 
 const writeToStorage = (items) => {
-  localStorage.setItem(CART_KEY, JSON.stringify(items));
+  localStorage.setItem(getCartKey(), JSON.stringify(items));
   // Notify all other components (e.g. header badge) about the cart change
   window.dispatchEvent(new Event('storage'));
 };
@@ -37,6 +53,13 @@ export const useCartStore = create((set, get) => ({
 
   /** Re-sync store state from localStorage (called on storage events from other tabs). */
   syncFromStorage: () => {
+    set({ items: readFromStorage() });
+  },
+
+  /**
+   * Reload cart for the current user (call after login/logout to switch carts).
+   */
+  loadUserCart: () => {
     set({ items: readFromStorage() });
   },
 
@@ -124,7 +147,7 @@ export const useCartStore = create((set, get) => ({
 
   /** Remove all items from the cart. */
   clearCart: () => {
-    localStorage.removeItem(CART_KEY);
+    localStorage.removeItem(getCartKey());
     window.dispatchEvent(new Event('storage'));
     set({ items: [] });
   },

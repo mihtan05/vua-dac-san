@@ -22,6 +22,7 @@ router.post('/logout', AuthController.logout);
 // Protected auth routes
 router.get('/verify', verifyAccessToken, AuthController.verify);
 router.post('/change-password', verifyAccessToken, AuthController.changePassword);
+router.post('/verify-password', verifyAccessToken, AuthController.verifyCurrentPassword);
 
 // Internal service-to-service routes (No token verify required, but can add auth token in headers if needed)
 router.post('/internal/create-account', AuthController.internalCreateAccount);

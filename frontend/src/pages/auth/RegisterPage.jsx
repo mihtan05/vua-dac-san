@@ -8,10 +8,22 @@ import { useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const registerSchema = z.object({
-  hoTen: z.string().min(2, { message: 'Họ tên phải có ít nhất 2 ký tự' }),
-  sdt: z.string().min(10, { message: 'Số điện thoại không hợp lệ' }),
-  email: z.string().email({ message: 'Email không hợp lệ' }),
-  matKhau: z.string().min(6, { message: 'Mật khẩu phải chứa ít nhất 6 ký tự' })
+  hoTen: z.string()
+    .min(1, { message: 'Họ tên không được để trống' })
+    .min(2, { message: 'Họ tên phải có ít nhất 2 ký tự' }),
+  sdt: z.string()
+    .min(1, { message: 'Số điện thoại không được để trống' })
+    .regex(/^\d{10}$/, { message: 'Số điện thoại phải gồm đúng 10 chữ số, không được nhập chữ' }),
+  email: z.string()
+    .min(1, { message: 'Email không được để trống' })
+    .email({ message: 'Email không hợp lệ' })
+    .regex(/@gmail\.com$/, { message: 'Email phải có dạng @gmail.com' }),
+  matKhau: z.string()
+    .min(1, { message: 'Mật khẩu không được để trống' })
+    .min(8, { message: 'Mật khẩu phải chứa ít nhất 8 ký tự' })
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/, {
+      message: 'Mật khẩu phải bao gồm chữ hoa, chữ thường và số'
+    })
 });
 
 export default function RegisterPage() {
@@ -79,9 +91,14 @@ export default function RegisterPage() {
               <input
                 id="sdt"
                 type="text"
+                inputMode="numeric"
+                maxLength={10}
                 className="mt-1 block w-full px-4 py-3 bg-brand-light border border-gray-200 rounded-xl text-brand-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-primary transition"
                 placeholder="0912345678"
                 {...register('sdt')}
+                onInput={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '');
+                }}
               />
               {errors.sdt && <p className="mt-1 text-sm text-red-500">{errors.sdt.message}</p>}
             </div>
@@ -92,7 +109,7 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 className="mt-1 block w-full px-4 py-3 bg-brand-light border border-gray-200 rounded-xl text-brand-dark placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-primary transition"
-                placeholder="email@domain.com"
+                placeholder="example@gmail.com"
                 {...register('email')}
               />
               {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}

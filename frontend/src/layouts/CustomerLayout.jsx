@@ -11,6 +11,7 @@ export default function CustomerLayout() {
   // Cart count comes from the central store — no manual localStorage reads needed
   const items = useCartStore((state) => state.items);
   const syncFromStorage = useCartStore((state) => state.syncFromStorage);
+  const loadUserCart = useCartStore((state) => state.loadUserCart);
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   // Keep the store in sync when another tab modifies the cart
@@ -26,6 +27,8 @@ export default function CustomerLayout() {
 
   const handleLogout = () => {
     clearAuth();
+    // Reload cart for guest user (no leftover items from previous user)
+    loadUserCart();
     navigate('/login');
   };
 

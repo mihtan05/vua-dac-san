@@ -169,6 +169,33 @@ export const AuthController = {
     });
   },
 
+  // POST /auth/verify-password
+  async verifyCurrentPassword(req, res) {
+    try {
+      const { matKhau } = req.body;
+      const username = req.user.tenDangnhap;
+
+      if (!matKhau) {
+        return res.status(400).json({ message: 'Vui lòng nhập mật khẩu' });
+      }
+
+      const account = await AccountModel.findByUsername(username);
+      if (!account) {
+        return res.status(404).json({ message: 'Tài khoản không tồn tại' });
+      }
+
+      const isMatch = await bcrypt.compare(matKhau, account.matkhau);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Mật khẩu không chính xác' });
+      }
+
+      return res.json({ verified: true, message: 'Xác thực thành công' });
+    } catch (err) {
+      console.error('Error during password verification:', err);
+      return res.status(500).json({ message: 'Server error' });
+    }
+  },
+
   // POST /auth/change-password
   async changePassword(req, res) {
     try {

@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCartStore } from '../../store/useCartStore';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { useState } from 'react';
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const loadUserCart = useCartStore((state) => state.loadUserCart);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +44,9 @@ export default function LoginPage() {
 
       // Save in Zustand
       setAuth(accessToken, refreshToken, user);
+
+      // Load cart scoped to this user
+      loadUserCart();
 
       toast.success('Đăng nhập thành công!');
 

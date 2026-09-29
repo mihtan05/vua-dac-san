@@ -21,13 +21,14 @@ export default function ProductsPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Fetch Categories
-  const { data: categories = [] } = useQuery({
+  const { data: categoriesData = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
       const res = await productApi.getCategories();
-      return res.data || [];
+      return Array.isArray(res.data) ? res.data : [];
     }
   });
+  const categories = Array.isArray(categoriesData) ? categoriesData : [];
 
   // Fetch Products
   const { data: productsData, isLoading } = useQuery({
@@ -41,11 +42,11 @@ export default function ProductsPage() {
         vungMien: selectedRegion || undefined,
         trangThai: 'Còn hàng' // Only show in-stock products to customers
       });
-      return res.data || { data: [], total: 0, totalPages: 1 };
+      return res.data && Array.isArray(res.data.data) ? res.data : { data: [], total: 0, totalPages: 1 };
     }
   });
 
-  const products = productsData?.data || [];
+  const products = Array.isArray(productsData?.data) ? productsData.data : [];
   const totalPages = productsData?.totalPages || 1;
 
   const addToCart = useCartStore((state) => state.addToCart);

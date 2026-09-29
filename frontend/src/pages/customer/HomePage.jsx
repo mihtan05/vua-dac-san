@@ -31,7 +31,7 @@ export default function HomePage() {
     }
   });
 
-  const FEATURED_PRODUCTS = productsData?.data || [];
+  const FEATURED_PRODUCTS = Array.isArray(productsData?.data) ? productsData.data : [];
 
 
   const filtered = FEATURED_PRODUCTS.filter(p => {

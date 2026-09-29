@@ -1,11 +1,15 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://copper-onto-unhappy.ngrok-free.dev/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://copper-onto-unhappy.ngrok-free.dev/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/api",
+      "destination": "https://copper-onto-unhappy.ngrok-free.dev/api/"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

@@ -21,6 +21,33 @@ async function generateOrderCode() {
   return `${prefix}${nextNum.toString().padStart(4, '0')}`;
 }
 
+// Helper to restore inventory to product-service atomically with fallback
+async function restoreOrderInventory(items) {
+  if (!items || items.length === 0) return;
+
+  const restorePayload = items.map(item => ({
+    maSanpham: item.masanpham,
+    soLuong: parseInt(item.soluong, 10)
+  }));
+
+  try {
+    // Try batch atomic restoration first
+    await productApi.post('/restore-stock', { items: restorePayload });
+  } catch (batchErr) {
+    console.warn('Batch /restore-stock failed, falling back to individual PATCH stock:', batchErr.message);
+    for (const item of items) {
+      try {
+        await productApi.patch(`/${item.masanpham}/stock`, {
+          soLuongThayDoi: parseInt(item.soluong, 10)
+        });
+      } catch (stockErr) {
+        console.error(`Failed to restore stock for product ${item.masanpham}:`, stockErr.message);
+        throw new Error(`Lỗi hoàn trả tồn kho cho sản phẩm mã ${item.masanpham}`);
+      }
+    }
+  }
+}
+
 export const OrderController = {
   // GET /orders/promos/available (public)
   async getAvailablePromos(req, res) {
@@ -359,8 +386,20 @@ export const OrderController = {
       try {
         await client.query('BEGIN');
 
-        const updated = await OrderModel.updateOrderStatus(id, trangThaiMoi, client);
+        const updated = await OrderModel.updateOrderStatus(id, trangThaiMoi, client, ghiChu || null);
         await OrderModel.addOrderHistory(id, trangThaiMoi, ghiChu || `Cập nhật trạng thái sang ${trangThaiMoi}`, client);
+
+        // If status changed to "Đã hủy", restore stock & revert promo
+        if (trangThaiMoi === 'Đã hủy') {
+          // 1. Revert promo usage
+          if (order.makhuyenmai) {
+            await OrderModel.decrementPromoUsage(order.makhuyenmai, client);
+          }
+
+          // 2. Call product-service to restore stock
+          const items = await OrderModel.getOrderItems(id);
+          await restoreOrderInventory(items);
+        }
 
         await client.query('COMMIT');
 
@@ -371,9 +410,15 @@ export const OrderController = {
           });
         }
 
-        return res.json({ message: 'Cập nhật trạng thái đơn hàng thành công', order: updated });
+        return res.json({ 
+          message: trangThaiMoi === 'Đã hủy'
+            ? 'Cập nhật trạng thái thành Đã hủy và hoàn lại tồn kho thành công'
+            : 'Cập nhật trạng thái đơn hàng thành công', 
+          order: updated 
+        });
       } catch (err) {
         await client.query('ROLLBACK');
+        console.error('Error during order status update transaction:', err.message);
         throw err;
       } finally {
         client.release();
@@ -381,7 +426,7 @@ export const OrderController = {
 
     } catch (err) {
       console.error('Error updating order status:', err);
-      return res.status(500).json({ message: 'Lỗi máy chủ' });
+      return res.status(err.status || 500).json({ message: err.message || 'Lỗi máy chủ' });
     }
   },
 
@@ -439,16 +484,7 @@ export const OrderController = {
         }
 
         // Call product-service to add back stock
-        for (const item of items) {
-          try {
-            await productApi.patch(`/${item.masanpham}/stock`, {
-              soLuongThayDoi: item.soluong
-            });
-          } catch (stockErr) {
-            console.error(`Failed to restore stock for product ${item.masanpham}:`, stockErr.message);
-            throw new Error(`Lỗi hoàn trả tồn kho cho sản phẩm mã ${item.masanpham}`);
-          }
-        }
+        await restoreOrderInventory(items);
 
         await client.query('COMMIT');
         return res.json({ message: 'Hủy đơn hàng thành công và đã hoàn lại tồn kho sản phẩm', order: updatedOrder });

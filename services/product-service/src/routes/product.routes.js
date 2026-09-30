@@ -25,5 +25,6 @@ router.get('/:id', ProductController.getProductById);
 // Exposed internally, does not require token verification (called directly from order/warehouse service inside Docker network)
 router.patch('/:id/stock', ProductController.updateStock);
 router.post('/reserve-stock', ProductController.reserveStock);
+router.post('/restore-stock', ProductController.restoreStock);
 
 export default router;

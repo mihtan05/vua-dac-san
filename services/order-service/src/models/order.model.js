@@ -231,17 +231,18 @@ export const OrderModel = {
     return newOrder;
   },
 
-  async updateOrderStatus(id, trangThaiMoi, client) {
+  async updateOrderStatus(id, trangThaiMoi, client, lyDoHuy = null) {
     const executeQuery = client ? client.query.bind(client) : pool.query.bind(pool);
     const query = `
       UPDATE HOA_DON 
       SET trangThaiDH = $1, 
           trangThaiTT = CASE WHEN $1::VARCHAR = 'Giao thành công' THEN 'Đã thanh toán' ELSE trangThaiTT END,
+          lyDoHuy = CASE WHEN $1::VARCHAR = 'Đã hủy' THEN COALESCE($3, lyDoHuy, 'Quản lý/Admin cập nhật trạng thái đã hủy') ELSE lyDoHuy END,
           ngayCapNhat = NOW() 
       WHERE maHoadon = $2 
       RETURNING *
     `;
-    const result = await executeQuery(query, [trangThaiMoi, id]);
+    const result = await executeQuery(query, [trangThaiMoi, id, lyDoHuy]);
     return result.rows[0];
   },
 

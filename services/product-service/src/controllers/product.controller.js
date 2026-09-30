@@ -182,6 +182,26 @@ export const ProductController = {
     }
   },
 
+  // POST /products/restore-stock (Internal API)
+  async restoreStock(req, res) {
+    try {
+      const { items } = req.body;
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: 'Danh sách sản phẩm không hợp lệ' });
+      }
+
+      await ProductModel.restoreStockInternal(items);
+
+      return res.json({ message: 'Hoàn trả tồn kho thành công' });
+    } catch (err) {
+      console.error('Error during internal stock restoration:', err.message);
+      if (err.message.includes('Không tìm thấy sản phẩm')) {
+        return res.status(400).json({ message: err.message });
+      }
+      return res.status(500).json({ message: 'Lỗi máy chủ khi hoàn trả kho' });
+    }
+  },
+
   // GET /products/categories
   async getCategories(req, res) {
     try {

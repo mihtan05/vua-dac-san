@@ -264,6 +264,57 @@ export const ProductModel = {
     }
   },
 
+  // Internal function to restore stock for multiple items atomically
+  async restoreStockInternal(items) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const productIds = items.map(i => i.maSanpham);
+      const getStockQuery = `
+        SELECT maSanpham, tenSanpham, soLuongTon 
+        FROM SAN_PHAM 
+        WHERE maSanpham = ANY($1) 
+        ORDER BY maSanpham
+        FOR UPDATE
+      `;
+      const stockRes = await client.query(getStockQuery, [productIds]);
+
+      const productMap = {};
+      stockRes.rows.forEach(row => {
+        productMap[row.masanpham] = row;
+      });
+
+      const updatePromises = [];
+      for (const item of items) {
+        const product = productMap[item.maSanpham];
+        if (!product) {
+          throw new Error(`Không tìm thấy sản phẩm mã ${item.maSanpham}`);
+        }
+
+        const currentStock = product.soluongton;
+        const newStock = currentStock + item.soLuong;
+        const newStatus = newStock === 0 ? 'Hết hàng' : 'Còn hàng';
+
+        const updateStockQuery = `
+          UPDATE SAN_PHAM
+          SET soLuongTon = $2, trangThai = $3
+          WHERE maSanpham = $1
+        `;
+        updatePromises.push(client.query(updateStockQuery, [item.maSanpham, newStock, newStatus]));
+      }
+
+      await Promise.all(updatePromises);
+      await client.query('COMMIT');
+      return true;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
   // --- CATEGORIES ---
   async getCategories() {
     const query = `

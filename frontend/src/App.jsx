@@ -96,11 +96,12 @@ export default function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           
-          {/* Manager-only routes: employees, suppliers */}
+          {/* Manager-only routes: employees, suppliers, promotions, finance */}
           <Route element={<ProtectedRoute allowedRoles={['QUAN_LY']} />}>
             <Route path="employees" element={<EmployeesPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
+            <Route path="finance" element={<FinancePage />} />
           </Route>
 
           {/* Routes accessible by NHAN_VIEN and QUAN_LY */}
@@ -111,7 +112,6 @@ export default function App() {
             <Route path="posts" element={<PostsPage />} />
             <Route path="products" element={<ProductsPage />} />
             <Route path="support" element={<SupportPage />} />
-            <Route path="finance" element={<FinancePage />} />
           </Route>
         </Route>
 

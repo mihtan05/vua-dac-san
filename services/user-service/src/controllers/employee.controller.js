@@ -13,6 +13,17 @@ export const EmployeeController = {
     }
   },
 
+  // GET /users/employees/next-id
+  async getNextId(req, res) {
+    try {
+      const nextId = await EmployeeModel.getNextEmployeeId();
+      return res.json({ nextId });
+    } catch (err) {
+      console.error('Error getting next employee id:', err);
+      return res.status(500).json({ message: 'Lỗi lấy mã nhân viên tiếp theo' });
+    }
+  },
+
   // POST /users/employees
   async createEmployee(req, res) {
     try {
@@ -36,6 +47,24 @@ export const EmployeeController = {
       // Check CCCD (phải đúng 12 số)
       if (!cccd || !/^\d{12}$/.test(cccd)) {
         return res.status(400).json({ message: 'Số CCCD phải gồm đúng 12 chữ số' });
+      }
+
+      // Check ngày sinh (phải từ đủ 18 tuổi)
+      if (!ngaySinh) {
+        return res.status(400).json({ message: 'Vui lòng cung cấp ngày sinh của nhân viên' });
+      }
+      const birthDate = new Date(ngaySinh);
+      if (isNaN(birthDate.getTime())) {
+        return res.status(400).json({ message: 'Ngày sinh không hợp lệ' });
+      }
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        return res.status(400).json({ message: 'Nhân viên phải từ đủ 18 tuổi trở lên' });
       }
 
       // Check duplicate
@@ -152,6 +181,23 @@ export const EmployeeController = {
       // Check CCCD (nếu có cung cấp, phải đúng 12 số)
       if (cccd && !/^\d{12}$/.test(cccd)) {
         return res.status(400).json({ message: 'Số CCCD phải gồm đúng 12 chữ số' });
+      }
+
+      // Check ngày sinh (nếu có cung cấp, phải từ đủ 18 tuổi)
+      if (ngaySinh) {
+        const birthDate = new Date(ngaySinh);
+        if (isNaN(birthDate.getTime())) {
+          return res.status(400).json({ message: 'Ngày sinh không hợp lệ' });
+        }
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          return res.status(400).json({ message: 'Nhân viên phải từ đủ 18 tuổi trở lên' });
+        }
       }
 
       const employee = await EmployeeModel.findById(id);

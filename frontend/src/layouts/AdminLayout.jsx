@@ -34,7 +34,7 @@ export default function AdminLayout() {
     { path: '/admin/customers', name: 'Khách hàng', icon: Users, roles: ['NHAN_VIEN', 'QUAN_LY'] },
     { path: '/admin/posts', name: 'Bài viết tin tức', icon: BookOpen, roles: ['NHAN_VIEN', 'QUAN_LY'] },
     { path: '/admin/support', name: 'Chăm sóc khách hàng', icon: Headphones, roles: ['NHAN_VIEN', 'QUAN_LY'] },
-    { path: '/admin/finance', name: 'Tài chính & Lương', icon: CircleDollarSign, roles: ['NHAN_VIEN', 'QUAN_LY'] },
+    { path: '/admin/finance', name: 'Tài chính & Lương', icon: CircleDollarSign, roles: ['QUAN_LY'] },
     { path: '/admin/promotions', name: 'Mã giảm giá', icon: Ticket, roles: ['QUAN_LY'] },
     { path: '/admin/employees', name: 'Quản lý Nhân viên', icon: UserSquare2, roles: ['QUAN_LY'] },
     { path: '/admin/suppliers', name: 'Nhà cung cấp', icon: Truck, roles: ['QUAN_LY'] },

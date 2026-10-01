@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
+import { useAuthStore } from '../../store/useAuthStore';
 import { 
   LineChart, 
   Line, 
@@ -23,6 +24,9 @@ import {
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const { user } = useAuthStore();
+  const isManager = user?.vaiTro === 'QUAN_LY' || user?.cacQuyen?.includes('QUAN_LY');
+
   const [filterType, setFilterType] = useState('THANG'); // TUAN | THANG | QUY
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -193,18 +197,20 @@ export default function AdminDashboard() {
             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
             <span>Làm mới</span>
           </button>
-          <button
-            onClick={handleExportExcel}
-            disabled={exporting}
-            className="flex items-center justify-center space-x-2 bg-brand-primary text-brand-dark font-bold px-6 py-3 rounded-xl hover:bg-brand-primary/95 transition duration-300 disabled:opacity-50 shadow-sm"
-          >
-            {exporting ? (
-              <Loader2 className="animate-spin h-5 w-5" />
-            ) : (
-              <Download size={20} />
-            )}
-            <span>Xuất Báo cáo Tài chính</span>
-          </button>
+          {isManager && (
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting}
+              className="flex items-center justify-center space-x-2 bg-brand-primary text-brand-dark font-bold px-6 py-3 rounded-xl hover:bg-brand-primary/95 transition duration-300 disabled:opacity-50 shadow-sm"
+            >
+              {exporting ? (
+                <Loader2 className="animate-spin h-5 w-5" />
+              ) : (
+                <Download size={20} />
+              )}
+              <span>Xuất Báo cáo Tài chính</span>
+            </button>
+          )}
         </div>
       </div>
 

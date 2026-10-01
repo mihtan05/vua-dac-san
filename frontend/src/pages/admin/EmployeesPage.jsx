@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeApi } from '../../api/employeeApi';
 import { toast } from 'react-toastify';
@@ -33,9 +33,25 @@ const handleNumericKeyDown = (e) => {
   }
 };
 
+const getMaxBirthDate = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().split('T')[0];
+};
+
 // ===== EMPLOYEE FORM MODAL =====
 function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
   const isEdit = !!employee;
+  const [nextId, setNextId] = useState('');
+
+  useEffect(() => {
+    if (!isEdit) {
+      employeeApi.getNextId()
+        .then(res => setNextId(res.data?.nextId || ''))
+        .catch(err => console.error('Error fetching next employee id:', err));
+    }
+  }, [isEdit]);
+
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: isEdit ? {
       hoTen: employee.hoten, email: employee.email, sdt: employee.sdt,
@@ -72,6 +88,25 @@ function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition"><X size={22} /></button>
         </div>
         <form onSubmit={handleSubmit(onSave)} className="space-y-5">
+          {/* Mã nhân viên / Tên đăng nhập */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-semibold text-brand-dark">
+                Mã nhân viên (Tên đăng nhập)
+              </label>
+              <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full font-medium">
+                {isEdit ? 'Mã cố định' : 'Hệ thống tự động cấp'}
+              </span>
+            </div>
+            <input
+              type="text"
+              readOnly
+              disabled
+              value={isEdit ? employee.manhanvien : (nextId || 'Đang tạo mã...')}
+              className="w-full border border-brand-light bg-gray-100/80 text-brand-dark font-bold px-4 py-3 rounded-xl text-sm cursor-not-allowed select-none tracking-wide"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-semibold text-brand-dark mb-1.5">Họ và tên <span className="text-red-500">*</span></label>
             <input {...register('hoTen', { required: 'Vui lòng nhập họ tên' })} className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="Nguyễn Văn A" />
@@ -111,8 +146,34 @@ function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
               {errors.chucVu && <p className="text-red-500 text-xs mt-1">{errors.chucVu.message}</p>}
             </div>
             <div>
-              <label className="block text-sm font-semibold text-brand-dark mb-1.5">Ngày sinh</label>
-              <input type="date" {...register('ngaySinh')} className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
+              <label className="block text-sm font-semibold text-brand-dark mb-1.5">Ngày sinh <span className="text-red-500">*</span></label>
+              <input
+                type="date"
+                max={getMaxBirthDate()}
+                {...register('ngaySinh', {
+                  required: 'Vui lòng chọn ngày sinh',
+                  validate: (val) => {
+                    if (!val) return 'Vui lòng chọn ngày sinh';
+                    const birthDate = new Date(val);
+                    if (isNaN(birthDate.getTime())) return 'Ngày sinh không hợp lệ';
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                      age--;
+                    }
+                    if (age < 18) {
+                      return 'Nhân viên phải từ đủ 18 tuổi trở lên';
+                    }
+                    if (age > 75) {
+                      return 'Ngày sinh không hợp lệ (tuổi không được quá 75)';
+                    }
+                    return true;
+                  }
+                })}
+                className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              />
+              {errors.ngaySinh && <p className="text-red-500 text-xs mt-1">{errors.ngaySinh.message}</p>}
             </div>
           </div>
           <div>
@@ -133,9 +194,21 @@ function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
             {errors.cccd && <p className="text-red-500 text-xs mt-1">{errors.cccd.message}</p>}
           </div>
           {!isEdit && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-              <Shield size={16} className="inline mr-2" />
-              Tài khoản đăng nhập sẽ được tự động tạo với mật khẩu mặc định: <strong>Abc@123456</strong>
+            <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-4 text-sm text-blue-900 space-y-2">
+              <div className="font-semibold flex items-center gap-2 text-blue-800">
+                <Shield size={18} className="text-blue-600 flex-shrink-0" />
+                Thông tin tài khoản đăng nhập của nhân viên mới:
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="bg-white border border-blue-200/80 rounded-xl p-3 shadow-xs">
+                  <span className="text-xs text-gray-500 block mb-0.5 font-medium">Tên đăng nhập (Mã NV)</span>
+                  <span className="font-bold text-blue-700 text-sm tracking-wide font-mono">{nextId || 'Đang tạo...'}</span>
+                </div>
+                <div className="bg-white border border-blue-200/80 rounded-xl p-3 shadow-xs">
+                  <span className="text-xs text-gray-500 block mb-0.5 font-medium">Mật khẩu mặc định</span>
+                  <span className="font-bold text-blue-700 text-sm tracking-wide font-mono">Abc@123456</span>
+                </div>
+              </div>
             </div>
           )}
           <div className="flex gap-3 pt-4 border-t border-brand-light">

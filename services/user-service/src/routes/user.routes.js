@@ -11,6 +11,7 @@ router.use(authenticate);
 // --- EMPLOYEE MANAGEMENT ROUTES ---
 // Manager only
 router.get('/employees', requireManager, EmployeeController.getEmployees);
+router.get('/employees/next-id', requireManager, EmployeeController.getNextId);
 router.post('/employees', requireManager, EmployeeController.createEmployee);
 router.get('/employees/:id', requireManager, EmployeeController.getEmployeeById);
 router.put('/employees/:id', requireManager, EmployeeController.updateEmployee);

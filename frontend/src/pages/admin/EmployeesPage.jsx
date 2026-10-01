@@ -21,6 +21,18 @@ const ROLE_COLORS = {
 const AVATAR_COLORS = ['#D4A373', '#2D6A4F', '#C97A34', '#6B7280', '#8B5CF6'];
 function getInitials(name) { return name ? name.split(' ').slice(-2).map(n => n[0]).join('').toUpperCase() : '?'; }
 
+const handleNumericKeyDown = (e) => {
+  if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) {
+    return;
+  }
+  if (!/^\d$/.test(e.key)) {
+    e.preventDefault();
+  }
+};
+
 // ===== EMPLOYEE FORM MODAL =====
 function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
   const isEdit = !!employee;
@@ -29,6 +41,27 @@ function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
       hoTen: employee.hoten, email: employee.email, sdt: employee.sdt,
       chucVu: employee.chucvu, ngaySinh: employee.ngaysinh ? employee.ngaysinh.split('T')[0] : '', cccd: employee.cccd || '',
     } : { hoTen: '', email: '', sdt: '', chucVu: '', ngaySinh: '', cccd: '' }
+  });
+
+  const sdtRegister = register('sdt', {
+    required: 'Vui lòng nhập số điện thoại',
+    validate: (val) => {
+      if (!val) return 'Vui lòng nhập số điện thoại';
+      if (!/^\d+$/.test(val)) return 'Số điện thoại chỉ được chứa chữ số';
+      if (!val.startsWith('0')) return 'Số điện thoại phải bắt đầu bằng số 0';
+      if (val.length !== 10) return 'Số điện thoại phải gồm đúng 10 chữ số';
+      return true;
+    }
+  });
+
+  const cccdRegister = register('cccd', {
+    required: 'Vui lòng nhập số CCCD',
+    validate: (val) => {
+      if (!val) return 'Vui lòng nhập số CCCD';
+      if (!/^\d+$/.test(val)) return 'Số CCCD chỉ được chứa chữ số';
+      if (val.length !== 12) return 'Số CCCD phải gồm đúng 12 chữ số';
+      return true;
+    }
   });
 
   return (
@@ -52,7 +85,19 @@ function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Số điện thoại <span className="text-red-500">*</span></label>
-              <input {...register('sdt', { required: 'Vui lòng nhập SĐT' })} className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="0901234567" />
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                {...sdtRegister}
+                onKeyDown={handleNumericKeyDown}
+                onChange={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  sdtRegister.onChange(e);
+                }}
+                className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                placeholder="0901234567"
+              />
               {errors.sdt && <p className="text-red-500 text-xs mt-1">{errors.sdt.message}</p>}
             </div>
           </div>
@@ -71,8 +116,21 @@ function EmployeeFormModal({ employee, onClose, onSave, isSaving }) {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-brand-dark mb-1.5">CCCD</label>
-            <input {...register('cccd')} className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" placeholder="079095001234" />
+            <label className="block text-sm font-semibold text-brand-dark mb-1.5">CCCD <span className="text-red-500">*</span></label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={12}
+              {...cccdRegister}
+              onKeyDown={handleNumericKeyDown}
+              onChange={(e) => {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 12);
+                cccdRegister.onChange(e);
+              }}
+              className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+              placeholder="079095001234"
+            />
+            {errors.cccd && <p className="text-red-500 text-xs mt-1">{errors.cccd.message}</p>}
           </div>
           {!isEdit && (
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">

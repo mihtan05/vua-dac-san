@@ -28,29 +28,28 @@ export const EmployeeController = {
         return res.status(400).json({ message: 'Định dạng email không hợp lệ' });
       }
 
-      // Check duplicate
-      const duplicate = await EmployeeModel.checkDuplicate(email, sdt);
-      if (duplicate) {
-        return res.status(400).json({ 
-          message: duplicate === 'email' ? 'Email đã được sử dụng' : 'Số điện thoại đã được sử dụng' 
-        });
+      // Check SDT (phải đúng 10 số, bắt đầu bằng số 0)
+      if (!/^0\d{9}$/.test(sdt)) {
+        return res.status(400).json({ message: 'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0' });
       }
 
-      // 1. Get next maNhanVien temporarily to use as username
-      // We will do this safely in a transaction inside createEmployee model.
-      // But we need to call auth-service first. To do this safely:
-      // Let's call the database to fetch next ID before inserting.
-      // Let's create a temporary client pool query.
-      const idRes = await EmployeeModel.checkDuplicate('', ''); // dummy to check database connection
-      
-      // Let's query max ID from NHAN_VIEN to predict the username
-      const maxIdRes = await import('../config/db.js').then(db => db.default.query("SELECT maNhanVien FROM NHAN_VIEN ORDER BY maNhanVien DESC LIMIT 1"));
-      let predictedId = 'NV001';
-      if (maxIdRes.rows.length > 0) {
-        const lastId = maxIdRes.rows[0].manhanvien;
-        const number = parseInt(lastId.replace('NV', ''), 10) + 1;
-        predictedId = 'NV' + String(number).padStart(3, '0');
+      // Check CCCD (phải đúng 12 số)
+      if (!cccd || !/^\d{12}$/.test(cccd)) {
+        return res.status(400).json({ message: 'Số CCCD phải gồm đúng 12 chữ số' });
       }
+
+      // Check duplicate
+      const duplicate = await EmployeeModel.checkDuplicate(email, sdt, cccd);
+      if (duplicate) {
+        let msg = 'Thông tin đã được sử dụng';
+        if (duplicate === 'email') msg = 'Email đã được sử dụng';
+        else if (duplicate === 'sdt') msg = 'Số điện thoại đã được sử dụng';
+        else if (duplicate === 'cccd') msg = 'Số CCCD đã được sử dụng bởi nhân viên khác';
+        return res.status(400).json({ message: msg });
+      }
+
+      // 1. Get next maNhanVien to use as employee ID & username
+      const predictedId = await EmployeeModel.getNextEmployeeId();
 
       // 2. Call auth-service to create account
       const defaultPassword = 'Abc@123456';
@@ -74,6 +73,7 @@ export const EmployeeController = {
       let employee = null;
       try {
         employee = await EmployeeModel.createEmployee({
+          maNhanVien: predictedId,
           hoTen,
           ngaySinh,
           cccd,
@@ -138,17 +138,35 @@ export const EmployeeController = {
         return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
       }
 
+      // Check email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Định dạng email không hợp lệ' });
+      }
+
+      // Check SDT (phải đúng 10 số, bắt đầu bằng số 0)
+      if (!/^0\d{9}$/.test(sdt)) {
+        return res.status(400).json({ message: 'Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng số 0' });
+      }
+
+      // Check CCCD (nếu có cung cấp, phải đúng 12 số)
+      if (cccd && !/^\d{12}$/.test(cccd)) {
+        return res.status(400).json({ message: 'Số CCCD phải gồm đúng 12 chữ số' });
+      }
+
       const employee = await EmployeeModel.findById(id);
       if (!employee) {
         return res.status(404).json({ message: 'Không tìm thấy nhân viên' });
       }
 
       // Check duplicates excluding this employee
-      const duplicate = await EmployeeModel.checkDuplicate(email, sdt, id);
+      const duplicate = await EmployeeModel.checkDuplicate(email, sdt, cccd || null, id);
       if (duplicate) {
-        return res.status(400).json({ 
-          message: duplicate === 'email' ? 'Email đã trùng với nhân viên khác' : 'Số điện thoại đã trùng với nhân viên khác' 
-        });
+        let msg = 'Thông tin đã trùng với nhân viên khác';
+        if (duplicate === 'email') msg = 'Email đã trùng với nhân viên khác';
+        else if (duplicate === 'sdt') msg = 'Số điện thoại đã trùng với nhân viên khác';
+        else if (duplicate === 'cccd') msg = 'Số CCCD đã trùng với nhân viên khác';
+        return res.status(400).json({ message: msg });
       }
 
       const updated = await EmployeeModel.updateEmployee(id, { hoTen, sdt, email, chucVu, ngaySinh, cccd });

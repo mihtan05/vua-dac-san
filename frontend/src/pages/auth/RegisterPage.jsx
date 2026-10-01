@@ -140,10 +140,10 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-[#1A1A1A] bg-[#D4A373] hover:bg-[#c39262] focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 transition shadow-sm"
+                className="w-full flex items-center justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-[#1A1A1A] bg-[#D4A373] hover:bg-[#c39262] focus:outline-none focus:ring-2 focus:ring-brand-primary disabled:opacity-50 transition shadow-sm"
               >
                 {loading && <Loader2 className="animate-spin h-5 w-5 text-brand-dark mr-2" />}
-                Đăng ký
+                <span>{loading ? 'Đang đăng ký...' : 'Đăng ký'}</span>
               </button>
             </div>
           </form>

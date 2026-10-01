@@ -67,25 +67,44 @@ export const EmployeeModel = {
   },
 
   // Check duplicate email or phone (optionally excluding a specific employee)
-  async checkDuplicate(email, sdt, excludeMaNhanVien = null) {
+  async checkDuplicate(email, sdt, cccd = null, excludeMaNhanVien = null) {
     let query = `
-      SELECT maNhanVien, email, sdt
+      SELECT maNhanVien, email, sdt, cccd
       FROM NHAN_VIEN
-      WHERE (email = $1 OR sdt = $2)
+      WHERE (email = $1 OR sdt = $2
     `;
     let params = [email, sdt];
 
+    if (cccd) {
+      params.push(cccd);
+      query += ` OR (cccd IS NOT NULL AND cccd = $${params.length})`;
+    }
+    query += `)`;
+
     if (excludeMaNhanVien) {
-      query += ` AND maNhanVien <> $3`;
       params.push(excludeMaNhanVien);
+      query += ` AND maNhanVien <> $${params.length}`;
     }
 
     const { rows } = await pool.query(query, params);
     if (rows.length > 0) {
-      if (rows[0].email === email) return 'email';
-      if (rows[0].sdt === sdt) return 'sdt';
+      if (rows.some(r => r.email === email)) return 'email';
+      if (rows.some(r => r.sdt === sdt)) return 'sdt';
+      if (cccd && rows.some(r => r.cccd === cccd)) return 'cccd';
     }
     return null;
+  },
+
+  // Get next auto-increment employee ID (NV001, NV002, ...)
+  async getNextEmployeeId() {
+    const query = `
+      SELECT COALESCE(MAX(CAST(SUBSTRING(maNhanVien FROM 3) AS INTEGER)), 0) AS max_num
+      FROM NHAN_VIEN
+      WHERE maNhanVien ~ '^NV[0-9]+$'
+    `;
+    const { rows } = await pool.query(query);
+    const nextNum = (parseInt(rows[0]?.max_num, 10) || 0) + 1;
+    return 'NV' + String(nextNum).padStart(3, '0');
   },
 
   // Create new employee
@@ -94,13 +113,17 @@ export const EmployeeModel = {
     try {
       await client.query('BEGIN');
 
-      // 1. Generate auto-increment ID: NV001, NV002
-      const idRes = await client.query("SELECT maNhanVien FROM NHAN_VIEN ORDER BY maNhanVien DESC LIMIT 1 FOR UPDATE");
-      let nextId = 'NV001';
-      if (idRes.rows.length > 0) {
-        const lastId = idRes.rows[0].manhanvien;
-        const number = parseInt(lastId.replace('NV', ''), 10) + 1;
-        nextId = 'NV' + String(number).padStart(3, '0');
+      // 1. Generate auto-increment ID or use provided ID
+      let maNhanVien = employeeData.maNhanVien || employeeData.tenDangnhap;
+      if (!maNhanVien) {
+        const idRes = await client.query(`
+          SELECT COALESCE(MAX(CAST(SUBSTRING(maNhanVien FROM 3) AS INTEGER)), 0) AS max_num
+          FROM NHAN_VIEN
+          WHERE maNhanVien ~ '^NV[0-9]+$'
+          FOR UPDATE
+        `);
+        const nextNum = (parseInt(idRes.rows[0]?.max_num, 10) || 0) + 1;
+        maNhanVien = 'NV' + String(nextNum).padStart(3, '0');
       }
 
       // 2. Insert employee
@@ -111,14 +134,14 @@ export const EmployeeModel = {
         RETURNING maNhanVien, hoTen, sdt, email, chucVu, tenDangnhap
       `;
       const { rows } = await client.query(query, [
-        nextId,
+        maNhanVien,
         hoTen,
         ngaySinh || null,
         cccd || null,
         sdt,
         email,
         chucVu || null,
-        tenDangnhap || null
+        tenDangnhap || maNhanVien
       ]);
 
       await client.query('COMMIT');

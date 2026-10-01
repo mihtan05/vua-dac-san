@@ -69,18 +69,37 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
   const initialRegion = initialCategory?.vungmien || product?.vungmien || '';
   const [selectedRegion, setSelectedRegion] = useState(initialRegion);
 
-  // Danh sách các vùng miền
-  const regions = useMemo(() => {
-    const list = Array.from(new Set(categories.map(c => c.vungmien).filter(Boolean)));
-    const defaultList = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
-    return list.length > 0 ? Array.from(new Set([...defaultList, ...list])) : defaultList;
-  }, [categories]);
+  // Danh sách 3 miền chuẩn
+  const regions = useMemo(() => ['Miền Bắc', 'Miền Trung', 'Miền Nam'], []);
 
-  // Lọc danh mục theo vùng miền đã chọn
+  // Danh sách 9 danh mục chuẩn theo đúng thứ tự yêu cầu
+  const STANDARD_CATEGORY_NAMES = useMemo(() => [
+    'Đặc sản thịt',
+    'Bánh kẹo truyền thống',
+    'Ăn vặt',
+    'Gia vị',
+    'Rượu & Trà',
+    'Thủy Hải Sản Khô',
+    'Trái cây đặc sản',
+    'Bún & Phở khô',
+    'Bánh truyền thống'
+  ], []);
+
+  // Lọc danh mục theo vùng miền đã chọn và sắp xếp chuẩn theo đúng thứ tự 9 danh mục như hình
   const filteredCategories = useMemo(() => {
     if (!selectedRegion) return [];
-    return categories.filter(c => c.vungmien === selectedRegion);
-  }, [categories, selectedRegion]);
+    const list = categories.filter(c => c.vungmien === selectedRegion);
+    return [...list].sort((a, b) => {
+      const nameA = (a.tendanhmuc || '').trim().toLowerCase();
+      const nameB = (b.tendanhmuc || '').trim().toLowerCase();
+      const idxA = STANDARD_CATEGORY_NAMES.findIndex(n => n.toLowerCase() === nameA);
+      const idxB = STANDARD_CATEGORY_NAMES.findIndex(n => n.toLowerCase() === nameB);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return nameA.localeCompare(nameB, 'vi');
+    });
+  }, [categories, selectedRegion, STANDARD_CATEGORY_NAMES]);
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: isEdit ? {
@@ -118,11 +137,18 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
   const handleRegionChange = (e) => {
     const newRegion = e.target.value;
     setSelectedRegion(newRegion);
-    // Nếu danh mục hiện tại không thuộc miền mới, reset trường maDanhMuc
     const currentCatId = watch('maDanhMuc');
     const currentCat = categories.find(c => c.madanhmuc === currentCatId);
     if (currentCat && currentCat.vungmien !== newRegion) {
-      setValue('maDanhMuc', '', { shouldValidate: true, shouldDirty: true });
+      // Tìm danh mục có cùng tên ở vùng miền mới để giữ nguyên lựa chọn
+      const matchingCatInNewRegion = categories.find(
+        c => c.vungmien === newRegion && c.tendanhmuc?.trim().toLowerCase() === currentCat.tendanhmuc?.trim().toLowerCase()
+      );
+      if (matchingCatInNewRegion) {
+        setValue('maDanhMuc', matchingCatInNewRegion.madanhmuc, { shouldValidate: true, shouldDirty: true });
+      } else {
+        setValue('maDanhMuc', '', { shouldValidate: true, shouldDirty: true });
+      }
     }
   };
 

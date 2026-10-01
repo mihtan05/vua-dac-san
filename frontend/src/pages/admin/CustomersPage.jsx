@@ -13,6 +13,18 @@ const MOCK_CUSTOMERS = [
   { makhachhang: 'KH003', hoten: 'Trần Minh Hoàng', sdt: '0965432109', email: 'hoang.tran@outlook.com', ngaysinh: '1988-12-05', trangthai: 0 },
 ];
 
+const handleNumericKeyDown = (e) => {
+  if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) {
+    return;
+  }
+  if (!/^\d$/.test(e.key)) {
+    e.preventDefault();
+  }
+};
+
 // ===== CUSTOMER FORM MODAL =====
 function CustomerFormModal({ customer, onClose, onSave, isSaving }) {
   const isEdit = !!customer;
@@ -29,6 +41,17 @@ function CustomerFormModal({ customer, onClose, onSave, isSaving }) {
       email: '',
       ngaySinh: '',
       trangThai: 1
+    }
+  });
+
+  const sdtRegister = register('sdt', {
+    required: 'Vui lòng nhập số điện thoại',
+    validate: (val) => {
+      if (!val) return 'Vui lòng nhập số điện thoại';
+      if (!/^\d+$/.test(val)) return 'Số điện thoại chỉ được chứa chữ số';
+      if (!val.startsWith('0')) return 'Số điện thoại phải bắt đầu bằng số 0';
+      if (val.length !== 10) return 'Số điện thoại phải gồm đúng 10 chữ số';
+      return true;
     }
   });
 
@@ -57,7 +80,15 @@ function CustomerFormModal({ customer, onClose, onSave, isSaving }) {
             <div>
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Số điện thoại <span className="text-red-500">*</span></label>
               <input
-                {...register('sdt', { required: 'Vui lòng nhập số điện thoại' })}
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                {...sdtRegister}
+                onKeyDown={handleNumericKeyDown}
+                onChange={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                  sdtRegister.onChange(e);
+                }}
                 className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
                 placeholder="0987654321"
               />

@@ -125,12 +125,12 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-[#1A1A1A] bg-[#D4A373] hover:bg-[#c39262] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-sm"
+          className="group relative w-full flex items-center justify-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-[#1A1A1A] bg-[#D4A373] hover:bg-[#c39262] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-sm"
         >
-          {loading ? (
+          {loading && (
             <Loader2 className="animate-spin h-5 w-5 text-brand-dark mr-2" />
-          ) : null}
-          Đăng nhập
+          )}
+          <span>{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</span>
         </button>
       </div>
       

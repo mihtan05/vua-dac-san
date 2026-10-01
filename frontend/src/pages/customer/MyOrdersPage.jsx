@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '../../api/customerApi';
 import { orderApi } from '../../api/orderApi';
 import { toast } from 'react-toastify';
-import { ShoppingBag, Eye, Calendar, DollarSign, CreditCard, Loader2, X, XCircle, Truck, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Eye, Calendar, DollarSign, CreditCard, Loader2, X, XCircle, Truck, AlertCircle, Package } from 'lucide-react';
 import { formatVND } from '../../lib/utils';
 
 const statusColors = {
@@ -214,30 +214,92 @@ function CustomerOrderDetailModal({ orderId, onClose, onCancelOrder }) {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-bold text-sm text-brand-dark uppercase tracking-wider">Chi tiết mặt hàng</h4>
-              <div className="border border-brand-light rounded-xl overflow-hidden text-xs">
+              <h4 className="font-bold text-sm text-brand-dark uppercase tracking-wider">Chi tiết mặt hàng ({order.items?.length || 0})</h4>
+              <div className="border border-brand-light rounded-xl overflow-hidden text-xs shadow-xs">
                 <table className="w-full text-left">
-                  <thead className="bg-brand-light/50 border-b border-brand-light font-bold text-gray-500">
+                  <thead className="bg-brand-light/50 border-b border-brand-light font-bold text-gray-600 uppercase text-[11px]">
                     <tr>
                       <th className="px-4 py-3">Sản phẩm</th>
-                      <th className="px-4 py-3 text-right">Số lượng</th>
                       <th className="px-4 py-3 text-right">Đơn giá</th>
+                      <th className="px-4 py-3 text-center">Số lượng</th>
                       <th className="px-4 py-3 text-right">Thành tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brand-light">
-                    {order.items?.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-brand-bg/30">
-                        <td className="px-4 py-3">
-                          <p className="font-bold text-brand-dark">{item.tenSanpham || item.masanpham}</p>
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold">{item.soluong}</td>
-                        <td className="px-4 py-3 text-right">{formatVND(item.giaban || item.dongia)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-brand-accent">{formatVND(item.soluong * (item.giaban || item.dongia))}</td>
-                      </tr>
-                    ))}
+                    {order.items?.map((item, idx) => {
+                      const itemPrice = parseFloat(item.giaban || item.dongia || 0);
+                      const itemQty = item.soluong || 1;
+                      const lineTotal = itemQty * itemPrice;
+
+                      return (
+                        <tr key={idx} className="hover:bg-brand-bg/30 transition">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {item.hinhAnh ? (
+                                <img
+                                  src={item.hinhAnh}
+                                  alt={item.tenSanpham || item.masanpham}
+                                  className="w-14 h-14 object-cover rounded-xl border border-brand-light shadow-xs shrink-0"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerHTML = '<div class="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 border border-brand-light text-base">📦</div>';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-14 h-14 rounded-xl bg-brand-light/50 flex items-center justify-center text-gray-400 border border-brand-light shrink-0">
+                                  <Package size={22} />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-bold text-brand-dark text-xs sm:text-sm">{item.tenSanpham || item.masanpham}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                                    {item.masanpham}
+                                  </span>
+                                  {item.donViTinh && (
+                                    <span className="text-[11px] text-gray-500">ĐVT: {item.donViTinh}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right text-gray-700 whitespace-nowrap">{formatVND(itemPrice)}</td>
+                          <td className="px-4 py-3 text-center whitespace-nowrap">
+                            <span className="inline-block px-2.5 py-0.5 bg-brand-light/60 text-brand-dark font-bold rounded-lg text-xs">
+                              {itemQty}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold text-brand-accent whitespace-nowrap">{formatVND(lineTotal)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Price Breakdown */}
+              <div className="bg-brand-bg/30 rounded-xl p-4 border border-brand-light space-y-1.5 text-xs">
+                <div className="flex justify-between text-gray-600">
+                  <span>Tiền hàng (tổng giá sản phẩm):</span>
+                  <span className="font-semibold text-brand-dark">
+                    {formatVND(parseFloat(order.tongtiensp || order.tongtientt || 0))}
+                  </span>
+                </div>
+                {parseFloat(order.phivanchuyen || 0) > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Phí vận chuyển:</span>
+                    <span className="font-semibold text-brand-dark">
+                      {formatVND(parseFloat(order.phivanchuyen))}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-brand-light text-sm">
+                  <span className="font-bold text-brand-dark">Tổng tiền thanh toán:</span>
+                  <span className="font-bold text-brand-accent text-base">
+                    {formatVND(parseFloat(order.tongtientt || 0))}
+                  </span>
+                </div>
               </div>
             </div>
 

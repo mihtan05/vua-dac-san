@@ -1,6 +1,6 @@
 import { CustomerModel } from '../models/customer.model.js';
 import { publishOtpRequest } from '../config/rabbitmq.js';
-import { authApi, notificationApi } from '../config/axios.js';
+import { authApi, notificationApi, productApi } from '../config/axios.js';
 import pool from '../config/db.js';
 
 async function generateCustomerCode() {
@@ -123,7 +123,41 @@ export const CustomerController = {
       }
 
       const orders = await CustomerModel.getOrdersHistory(customerId, { tuNgay, denNgay });
-      return res.json(orders);
+
+      // Enrich orders with product details (names, images) from product-service
+      const enrichedOrders = await Promise.all(orders.map(async (o) => {
+        const rawItems = o.danhsachsp || o.danhSachSP || [];
+        const itemsWithDetail = await Promise.all(rawItems.map(async (item) => {
+          try {
+            const prodRes = await productApi.get(`/${item.maSanpham || item.masanpham}`);
+            const p = prodRes.data?.data || prodRes.data;
+            return {
+              ...item,
+              tenSanpham: p?.tensanpham || p?.tenSanpham || ('Sản phẩm ' + (item.maSanpham || item.masanpham)),
+              hinhAnh: p?.hinhanh || p?.hinhAnh || null,
+              donViTinh: p?.donvitinh || p?.donViTinh || null
+            };
+          } catch (e) {
+            return {
+              ...item,
+              tenSanpham: 'Sản phẩm ' + (item.maSanpham || item.masanpham),
+              hinhAnh: null,
+              donViTinh: null
+            };
+          }
+        }));
+
+        const tenCacSanpham = itemsWithDetail.map(i => `${i.tenSanpham} (x${i.soLuong || i.soluong || 1})`).join(', ');
+
+        return {
+          ...o,
+          danhsachsp: itemsWithDetail,
+          danhSachSP: itemsWithDetail,
+          tenCacSanpham
+        };
+      }));
+
+      return res.json(enrichedOrders);
     } catch (err) {
       console.error('Error getting customer order history:', err);
       return res.status(500).json({ message: 'Lỗi máy chủ' });

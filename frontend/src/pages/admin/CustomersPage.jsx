@@ -4,7 +4,7 @@ import { customerApi } from '../../api/customerApi';
 import { toast } from 'react-toastify';
 import { useForm } from 'react-hook-form';
 import {
-  Search, Plus, Loader2, X, Pencil, Trash2, Eye, User, Phone, Mail, MapPin, Calendar, ChevronLeft, ChevronRight
+  Search, Loader2, X, Pencil, Trash2, Eye, User, Phone, Mail, MapPin, Calendar, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const MOCK_CUSTOMERS = [
@@ -247,9 +247,6 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-brand-dark font-heading">Quản lý Khách hàng</h1>
           <p className="text-sm text-gray-500">Quản lý tài khoản khách hàng, địa chỉ và thông tin mua hàng</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 bg-brand-primary text-brand-dark font-bold px-6 py-3 rounded-xl hover:bg-brand-primary/95 transition shadow-sm">
-          <Plus size={18} /> Thêm khách hàng
-        </button>
       </div>
 
       {/* Search */}

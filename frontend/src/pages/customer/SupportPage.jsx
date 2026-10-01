@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { customerApi } from '../../api/customerApi';
 import { contentApi } from '../../api/contentApi';
 import { productApi } from '../../api/productApi';
-import { MessageSquare, CheckCircle, Send, Loader2, HelpCircle } from 'lucide-react';
+import { MessageSquare, CheckCircle, Send, Loader2, HelpCircle, Package, ShoppingBag } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { formatVND } from '../../lib/utils';
 
@@ -69,6 +69,54 @@ export default function SupportPage() {
       toast.error(err.response?.data?.message || 'Gửi yêu cầu thất bại');
     }
   });
+
+  const selectedOrder = orders.find(o => o.mahoadon === maHoaDon);
+  const selectedOrderItems = selectedOrder?.danhsachsp || selectedOrder?.danhSachSP || selectedOrder?.items || [];
+
+  const getOrderOptionLabel = (order) => {
+    const rawItems = order.danhsachsp || order.danhSachSP || order.items || [];
+    let prodNames = order.tenCacSanpham;
+
+    if (!prodNames && rawItems.length > 0) {
+      prodNames = rawItems.map(item => {
+        const prod = products.find(p => p.masanpham === (item.maSanpham || item.masanpham));
+        const name = item.tenSanpham || prod?.tensanpham || `SP #${item.maSanpham || item.masanpham}`;
+        const qty = item.soLuong || item.soluong || 1;
+        return `${name} (x${qty})`;
+      }).join(', ');
+    }
+
+    const rawDate = order.ngaytaohoadon || order.ngaymua || order.ngayMua;
+    let dateStr = '';
+    if (rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        dateStr = d.toLocaleDateString('vi-VN');
+      }
+    }
+
+    const priceStr = formatVND(order.tongtientt || 0);
+
+    if (prodNames) {
+      return `${prodNames} — Đơn #${order.mahoadon} (${priceStr}${dateStr ? ` · ${dateStr}` : ''})`;
+    }
+    return `Đơn hàng #${order.mahoadon} (${priceStr}${dateStr ? ` · ${dateStr}` : ''})`;
+  };
+
+  const handleOrderChange = (selectedId) => {
+    setMaHoaDon(selectedId);
+    if (!selectedId) {
+      setMaSanpham('');
+      return;
+    }
+    const found = orders.find(o => o.mahoadon === selectedId);
+    const items = found?.danhsachsp || found?.danhSachSP || found?.items || [];
+    if (items.length === 1) {
+      setMaSanpham(items[0].maSanpham || items[0].masanpham);
+    } else {
+      setMaSanpham('');
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -160,35 +208,114 @@ export default function SupportPage() {
 
             {/* Optional Order Linkage */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-brand-dark uppercase tracking-wider">Liên kết Đơn hàng (Không bắt buộc)</label>
+              <label className="text-xs font-bold text-brand-dark uppercase tracking-wider">
+                Liên kết Đơn hàng (Không bắt buộc)
+              </label>
               <select
                 value={maHoaDon}
-                onChange={e => setMaHoaDon(e.target.value)}
+                onChange={e => handleOrderChange(e.target.value)}
                 className="w-full bg-brand-bg text-brand-dark text-sm px-4 py-3 rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary transition"
               >
                 <option value="">-- Không liên kết đơn hàng --</option>
                 {orders.map(order => (
                   <option key={order.mahoadon} value={order.mahoadon}>
-                    {order.mahoadon} ({new Date(order.ngaytaohoadon).toLocaleDateString('vi-VN')} - {formatVND(order.tongtientt)})
+                    {getOrderOptionLabel(order)}
                   </option>
                 ))}
               </select>
+
+              {/* Order Preview Card */}
+              {selectedOrder && (
+                <div className="bg-brand-bg/40 border border-brand-light rounded-xl p-3.5 space-y-2.5 mt-2 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs pb-2 border-b border-brand-light">
+                    <span className="font-bold text-brand-dark flex items-center gap-1.5">
+                      <ShoppingBag size={14} className="text-brand-primary" />
+                      Đơn hàng #{selectedOrder.mahoadon}
+                    </span>
+                    <span className="font-bold text-brand-accent">
+                      Tổng tiền: {formatVND(selectedOrder.tongtientt || 0)}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {selectedOrderItems.map((sp, idx) => {
+                      const pId = sp.maSanpham || sp.masanpham;
+                      const prodInfo = products.find(p => p.masanpham === pId);
+                      const img = sp.hinhAnh || prodInfo?.hinhanh;
+                      const name = sp.tenSanpham || prodInfo?.tensanpham || `Sản phẩm ${pId}`;
+                      const qty = sp.soLuong || sp.soluong || 1;
+                      const isSelectedProd = maSanpham === pId;
+
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => setMaSanpham(pId)}
+                          className={`flex items-center justify-between gap-3 p-2 rounded-lg border transition cursor-pointer ${
+                            isSelectedProd
+                              ? 'bg-amber-50/80 border-amber-300 ring-1 ring-amber-300'
+                              : 'bg-white border-brand-light hover:border-brand-primary/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {img ? (
+                              <img src={img} alt={name} className="w-10 h-10 object-cover rounded-lg border border-brand-light shrink-0" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs shrink-0">
+                                <Package size={16} />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-bold text-brand-dark text-xs truncate">{name}</p>
+                              <p className="text-[11px] text-gray-400">Số lượng: x{qty}</p>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            {isSelectedProd && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
+                                Đã chọn
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Optional Product Linkage */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-brand-dark uppercase tracking-wider">Sản phẩm liên quan (Không bắt buộc)</label>
+              <label className="text-xs font-bold text-brand-dark uppercase tracking-wider">
+                Sản phẩm liên quan (Không bắt buộc)
+              </label>
               <select
                 value={maSanpham}
                 onChange={e => setMaSanpham(e.target.value)}
                 className="w-full bg-brand-bg text-brand-dark text-sm px-4 py-3 rounded-xl border border-brand-light focus:outline-none focus:border-brand-primary transition"
               >
-                <option value="">-- Không liên kết sản phẩm --</option>
-                {products.map(prod => (
-                  <option key={prod.masanpham} value={prod.masanpham}>
-                    {prod.tensanpham}
-                  </option>
-                ))}
+                <option value="">-- Không liên kết sản phẩm cụ thể --</option>
+                {selectedOrderItems.length > 0 && (
+                  <optgroup label="Sản phẩm trong đơn hàng đã chọn">
+                    {selectedOrderItems.map(sp => {
+                      const pId = sp.maSanpham || sp.masanpham;
+                      const prod = products.find(p => p.masanpham === pId);
+                      const pName = sp.tenSanpham || prod?.tensanpham || `Sản phẩm ${pId}`;
+                      return (
+                        <option key={pId} value={pId}>
+                          {pName} (x{sp.soLuong || sp.soluong || 1})
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                )}
+                <optgroup label="Tất cả sản phẩm khác">
+                  {products.map(prod => (
+                    <option key={prod.masanpham} value={prod.masanpham}>
+                      {prod.tensanpham}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 

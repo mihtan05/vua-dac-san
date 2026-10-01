@@ -328,13 +328,24 @@ export const OrderController = {
       const items = await OrderModel.getOrderItems(id);
       const history = await OrderModel.getOrderHistory(id);
 
-      // Fetch latest names from product service if possible (non-blocking)
+      // Fetch latest names and images from product service if possible (non-blocking)
       const itemsWithDetail = await Promise.all(items.map(async (item) => {
         try {
           const prodRes = await productApi.get(`/${item.masanpham}`);
-          return { ...item, tenSanpham: prodRes.data.tensanpham };
+          const p = prodRes.data?.data || prodRes.data;
+          return {
+            ...item,
+            tenSanpham: p?.tensanpham || p?.tenSanpham || ('Sản phẩm ' + item.masanpham),
+            hinhAnh: p?.hinhanh || p?.hinhAnh || null,
+            donViTinh: p?.donvitinh || p?.donViTinh || null
+          };
         } catch (e) {
-          return { ...item, tenSanpham: 'Sản phẩm ' + item.masanpham };
+          return {
+            ...item,
+            tenSanpham: 'Sản phẩm ' + item.masanpham,
+            hinhAnh: null,
+            donViTinh: null
+          };
         }
       }));
 

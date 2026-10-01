@@ -110,7 +110,7 @@ export const CustomerModel = {
 
   async getOrdersHistory(id, { tuNgay, denNgay }) {
     let query = `
-      SELECT h.maHoadon, h.ngayTaoHoadon as ngayMua, h.tongTienTT, h.trangThaiDH, h.pThucThanhToan, h.trangThaiTT, h.lyDoHuy,
+      SELECT h.maHoadon, h.ngayTaoHoadon, h.ngayTaoHoadon as ngayMua, h.tongTienTT, h.trangThaiDH, h.pThucThanhToan, h.trangThaiTT, h.lyDoHuy,
              json_agg(json_build_object('maSanpham', c.maSanpham, 'soLuong', c.soLuong, 'giaBan', c.giaBan)) as danhSachSP
       FROM HOA_DON h
       JOIN CHI_TIET_HOA_DON c ON h.maHoadon = c.maHoadon

@@ -6,31 +6,26 @@ export const OrderModel = {
     let query = `
       SELECT h.*, k.hoTen as tenKhachHang, k.sdt as sdtKhachHang
       FROM HOA_DON h
-      JOIN KHACH_HANG k ON h.maKhachHang = k.maKhachHang
+      LEFT JOIN KHACH_HANG k ON h.maKhachHang = k.maKhachHang
       WHERE 1=1
     `;
     let countQuery = `
       SELECT COUNT(*) 
       FROM HOA_DON h
-      JOIN KHACH_HANG k ON h.maKhachHang = k.maKhachHang
+      LEFT JOIN KHACH_HANG k ON h.maKhachHang = k.maKhachHang
       WHERE 1=1
     `;
     const params = [];
     let paramIndex = 1;
 
-    // Filter by role/user
+    // Filter by role/user: only pure customers are restricted to their own orders
     if (requestUser) {
       const roles = requestUser.cacQuyen || [requestUser.vaiTro];
-      if (roles.includes('KHACH_HANG')) {
-        // Find customer record for this login
+      const isStaffOrManager = roles.includes('NHAN_VIEN') || roles.includes('QUAN_LY');
+      if (!isStaffOrManager && roles.includes('KHACH_HANG')) {
+        // Customer only sees their own orders
         query += ` AND k.tenDangnhap = $${paramIndex}`;
         countQuery += ` AND k.tenDangnhap = $${paramIndex}`;
-        params.push(requestUser.tenDangnhap);
-        paramIndex++;
-      } else if (roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
-        // Staff only see orders they created
-        query += ` AND h.maNVBanHang = $${paramIndex}`;
-        countQuery += ` AND h.maNVBanHang = $${paramIndex}`;
         params.push(requestUser.tenDangnhap);
         paramIndex++;
       }

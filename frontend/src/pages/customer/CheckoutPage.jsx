@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '../../api/customerApi';
 import { orderApi } from '../../api/orderApi';
 import api from '../../api/axios';
-import { MapPin, Plus, Loader2, CreditCard, DollarSign, Sparkles, X, Tag, ChevronDown, CheckCircle2, Ticket } from 'lucide-react';
+import { MapPin, Plus, Loader2, CreditCard, DollarSign, Sparkles, X, Tag, ChevronDown, CheckCircle2, Ticket, Pencil } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useCartStore } from '../../store/useCartStore';
 import { formatVND } from '../../lib/utils';
@@ -32,7 +32,9 @@ export default function CheckoutPage() {
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [showAddressModal, setShowAddressModal] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
   const [newAddressText, setNewAddressText] = useState('');
+  const [addressIsDefault, setAddressIsDefault] = useState(false);
 
   const cart = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clearCart);
@@ -83,6 +85,19 @@ export default function CheckoutPage() {
     onError: (err) => toast.error(err.response?.data?.message || 'Không thể thêm địa chỉ')
   });
 
+  // Mutation to update address
+  const updateAddressMutation = useMutation({
+    mutationFn: ({ addressId, data }) => customerApi.updateAddress(customer.makhachhang, addressId, data),
+    onSuccess: () => {
+      toast.success('Cập nhật địa chỉ nhận hàng thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+      setShowAddressModal(false);
+      setEditingAddress(null);
+      setNewAddressText('');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Không thể cập nhật địa chỉ')
+  });
+
   // Mutation to submit order
   const checkoutMutation = useMutation({
     mutationFn: (data) => orderApi.create(data),
@@ -94,13 +109,43 @@ export default function CheckoutPage() {
     onError: (err) => toast.error(err.response?.data?.message || 'Đặt hàng thất bại. Vui lòng kiểm tra lại tồn kho hoặc thông tin nhập.')
   });
 
-  const handleAddAddressSubmit = (e) => {
+  const handleOpenAddAddress = () => {
+    setEditingAddress(null);
+    setNewAddressText('');
+    setAddressIsDefault(customer?.diaChi?.length === 0);
+    setShowAddressModal(true);
+  };
+
+  const handleOpenEditAddress = (addr, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setEditingAddress(addr);
+    setNewAddressText(addr.diachichitiet || addr.diaChiChiTiet || '');
+    setAddressIsDefault(!!addr.lamacdinh);
+    setShowAddressModal(true);
+  };
+
+  const handleAddressSubmit = (e) => {
     e.preventDefault();
     if (!newAddressText.trim()) return;
-    addAddressMutation.mutate({
-      diaChiChiTiet: newAddressText.trim(),
-      laMacDinh: customer?.diaChi?.length === 0
-    });
+
+    if (editingAddress) {
+      const addrId = editingAddress.madiaChi || editingAddress.madiachi;
+      updateAddressMutation.mutate({
+        addressId: addrId,
+        data: {
+          diaChiChiTiet: newAddressText.trim(),
+          laMacDinh: addressIsDefault
+        }
+      });
+    } else {
+      addAddressMutation.mutate({
+        diaChiChiTiet: newAddressText.trim(),
+        laMacDinh: addressIsDefault || customer?.diaChi?.length === 0
+      });
+    }
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.quantity * (item.product.giaDon || item.product.giadon || 0), 0);
@@ -244,29 +289,42 @@ export default function CheckoutPage() {
                   customer.diaChi.map(addr => {
                     const addrId = addr.madiaChi || addr.madiachi;
                     return (
-                      <label
+                      <div
                         key={addrId}
-                        className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition ${selectedAddressId === addrId
+                        className={`flex items-start justify-between gap-3 p-4 rounded-xl border transition ${selectedAddressId === addrId
                           ? 'border-brand-primary bg-brand-primary/5'
                           : 'border-brand-light hover:bg-gray-50'
                           }`}
                       >
-                        <input
-                          type="radio"
-                          name="address"
-                          checked={selectedAddressId === addrId}
-                          onChange={() => setSelectedAddressId(addrId)}
-                          className="mt-1 text-brand-primary focus:ring-brand-primary"
-                        />
-                        <div className="text-sm">
-                          <p className="font-medium text-brand-dark">{addr.diachichitiet || addr.diaChiChiTiet}</p>
-                          {addr.lamacdinh && (
-                            <span className="inline-block bg-brand-light text-brand-dark font-bold text-[9px] px-2 py-0.5 rounded-full mt-1.5 uppercase">
-                              Mặc định
-                            </span>
-                          )}
-                        </div>
-                      </label>
+                        <label
+                          className="flex items-start gap-3 flex-1 min-w-0 cursor-pointer"
+                          onClick={() => setSelectedAddressId(addrId)}
+                        >
+                          <input
+                            type="radio"
+                            name="address"
+                            checked={selectedAddressId === addrId}
+                            onChange={() => setSelectedAddressId(addrId)}
+                            className="mt-1 text-brand-primary focus:ring-brand-primary shrink-0"
+                          />
+                          <div className="text-sm">
+                            <p className="font-medium text-brand-dark break-words">{addr.diachichitiet || addr.diaChiChiTiet}</p>
+                            {addr.lamacdinh && (
+                              <span className="inline-block bg-brand-light text-brand-dark font-bold text-[9px] px-2 py-0.5 rounded-full mt-1.5 uppercase">
+                                Mặc định
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={(e) => handleOpenEditAddress(addr, e)}
+                          className="text-xs text-brand-accent hover:text-brand-dark font-semibold px-2.5 py-1.5 rounded-lg border border-brand-light hover:bg-brand-primary/10 transition flex items-center gap-1 shrink-0 ml-2"
+                          title="Sửa địa chỉ này"
+                        >
+                          <Pencil size={13} /> Sửa
+                        </button>
+                      </div>
                     );
                   })
                 ) : (
@@ -276,7 +334,8 @@ export default function CheckoutPage() {
                 )}
 
                 <button
-                  onClick={() => setShowAddressModal(true)}
+                  type="button"
+                  onClick={handleOpenAddAddress}
                   className="flex items-center gap-2 text-sm text-brand-accent hover:underline font-bold pt-1.5"
                 >
                   <Plus size={16} /> Thêm địa chỉ nhận hàng mới
@@ -442,21 +501,36 @@ export default function CheckoutPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowAddressModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-brand-light pb-3">
-              <h3 className="font-bold font-heading text-brand-dark text-base">Thêm địa chỉ nhận hàng</h3>
+              <h3 className="font-bold font-heading text-brand-dark text-base">
+                {editingAddress ? 'Chỉnh sửa địa chỉ nhận hàng' : 'Thêm địa chỉ nhận hàng'}
+              </h3>
               <button onClick={() => setShowAddressModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
             </div>
-            <form onSubmit={handleAddAddressSubmit} className="space-y-4">
+            <form onSubmit={handleAddressSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-brand-dark">Địa chỉ giao hàng chi tiết</label>
                 <textarea required rows={3} value={newAddressText} onChange={e => setNewAddressText(e.target.value)}
                   placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành..."
                   className="w-full px-4 py-3 bg-brand-bg/50 border border-brand-light rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:bg-white resize-none" />
               </div>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-brand-dark select-none">
+                <input
+                  type="checkbox"
+                  checked={addressIsDefault}
+                  onChange={(e) => setAddressIsDefault(e.target.checked)}
+                  className="rounded border-brand-light text-brand-primary focus:ring-brand-primary"
+                />
+                <span>Đặt làm địa chỉ nhận hàng mặc định</span>
+              </label>
               <div className="flex gap-3 pt-3 border-t border-brand-light">
                 <button type="button" onClick={() => setShowAddressModal(false)} className="flex-1 border border-brand-light text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50 transition">Hủy</button>
-                <button type="submit" disabled={addAddressMutation.isPending} className="flex-1 bg-brand-primary text-brand-dark font-bold py-2.5 rounded-xl text-sm hover:bg-brand-primary/95 transition flex items-center justify-center gap-1.5 disabled:opacity-50">
-                  {addAddressMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : null}
-                  Lưu địa chỉ
+                <button
+                  type="submit"
+                  disabled={addAddressMutation.isPending || updateAddressMutation.isPending}
+                  className="flex-1 bg-brand-primary text-brand-dark font-bold py-2.5 rounded-xl text-sm hover:bg-brand-primary/95 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {(addAddressMutation.isPending || updateAddressMutation.isPending) ? <Loader2 className="animate-spin" size={16} /> : null}
+                  {editingAddress ? 'Cập nhật' : 'Lưu địa chỉ'}
                 </button>
               </div>
             </form>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productApi } from '../../api/productApi';
 import { warehouseApi } from '../../api/warehouseApi';
@@ -19,10 +19,69 @@ const daysUntil = (dateStr) => {
 
 const formatVND = v => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
+// Ngăn nhập ký tự âm, e, E hoặc dấu cộng vào ô số
+const handlePreventNegativeKeys = (e) => {
+  if (['-', '+', 'e', 'E'].includes(e.key)) {
+    e.preventDefault();
+  }
+};
+
+// Cho phép lăn chuột tăng/giảm số nhưng chỉ dừng ở số dương (tối thiểu minVal), không bao giờ về số âm
+const handleWheelNumber = (e, minVal = 0, step = 1, setValue = null, fieldName = null, maxVal = null) => {
+  e.preventDefault();
+  const currentVal = parseFloat(e.target.value);
+  const validVal = isNaN(currentVal) ? minVal : currentVal;
+
+  let nextVal;
+  if (e.deltaY < 0) {
+    // Lăn chuột lên -> Tăng giá trị
+    nextVal = validVal + step;
+    if (maxVal !== null && maxVal !== undefined && nextVal > maxVal) {
+      nextVal = maxVal;
+    }
+  } else if (e.deltaY > 0) {
+    // Lăn chuột xuống -> Giảm giá trị nhưng chặn tại minVal (không lăn về số âm)
+    nextVal = Math.max(minVal, validVal - step);
+  } else {
+    return;
+  }
+
+  nextVal = Math.round(nextVal * 100) / 100;
+  e.target.value = nextVal;
+  if (setValue && fieldName) {
+    setValue(fieldName, nextVal, { shouldValidate: true, shouldDirty: true });
+  } else {
+    e.target.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+};
+
 // ===== PRODUCT FORM MODAL =====
 function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
   const [isUploading, setIsUploading] = useState(false);
   const isEdit = !!product;
+
+  // Lấy vùng miền ban đầu từ sản phẩm hoặc danh mục của sản phẩm
+  const initialCategory = useMemo(() => {
+    if (!product?.madanhmuc) return null;
+    return categories.find(c => c.madanhmuc === product.madanhmuc);
+  }, [product, categories]);
+
+  const initialRegion = initialCategory?.vungmien || product?.vungmien || '';
+  const [selectedRegion, setSelectedRegion] = useState(initialRegion);
+
+  // Danh sách các vùng miền
+  const regions = useMemo(() => {
+    const list = Array.from(new Set(categories.map(c => c.vungmien).filter(Boolean)));
+    const defaultList = ['Miền Bắc', 'Miền Trung', 'Miền Nam'];
+    return list.length > 0 ? Array.from(new Set([...defaultList, ...list])) : defaultList;
+  }, [categories]);
+
+  // Lọc danh mục theo vùng miền đã chọn
+  const filteredCategories = useMemo(() => {
+    if (!selectedRegion) return [];
+    return categories.filter(c => c.vungmien === selectedRegion);
+  }, [categories, selectedRegion]);
+
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: isEdit ? {
       tenSanpham: product.tensanpham,
@@ -47,6 +106,26 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
     }
   });
 
+  useEffect(() => {
+    if (product) {
+      const cat = categories.find(c => c.madanhmuc === product.madanhmuc);
+      setSelectedRegion(cat?.vungmien || product.vungmien || '');
+    } else {
+      setSelectedRegion('');
+    }
+  }, [product, categories]);
+
+  const handleRegionChange = (e) => {
+    const newRegion = e.target.value;
+    setSelectedRegion(newRegion);
+    // Nếu danh mục hiện tại không thuộc miền mới, reset trường maDanhMuc
+    const currentCatId = watch('maDanhMuc');
+    const currentCat = categories.find(c => c.madanhmuc === currentCatId);
+    if (currentCat && currentCat.vungmien !== newRegion) {
+      setValue('maDanhMuc', '', { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
   const hinhAnhUrl = watch('hinhAnh');
 
   const handleImageUpload = async (e) => {
@@ -69,6 +148,14 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
   };
 
   const onSubmit = (data) => {
+    if (!selectedRegion) {
+      toast.error('Vui lòng chọn vùng miền trước');
+      return;
+    }
+    if (!data.maDanhMuc) {
+      toast.error('Vui lòng chọn danh mục sản phẩm');
+      return;
+    }
     onSave({
       ...data,
       giaDon: parseFloat(data.giaDon),
@@ -98,21 +185,45 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Category */}
+            {/* Region */}
             <div>
-              <label className="block text-sm font-semibold text-brand-dark mb-1.5">Danh mục <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-semibold text-brand-dark mb-1.5">
+                Vùng miền <span className="text-red-500">*</span>
+              </label>
               <select
-                {...register('maDanhMuc', { required: 'Vui lòng chọn danh mục' })}
+                value={selectedRegion}
+                onChange={handleRegionChange}
                 className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary bg-white"
               >
-                <option value="">-- Chọn danh mục --</option>
-                {categories.map(c => (
-                  <option key={c.madanhmuc} value={c.madanhmuc}>{c.tendanhmuc} ({c.vungmien})</option>
+                <option value="">-- Chọn vùng miền --</option>
+                {regions.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-semibold text-brand-dark mb-1.5">
+                Danh mục <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register('maDanhMuc', { required: 'Vui lòng chọn danh mục' })}
+                disabled={!selectedRegion}
+                className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary bg-white disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">
+                  {selectedRegion ? '-- Chọn danh mục --' : '-- Chọn miền trước --'}
+                </option>
+                {filteredCategories.map(c => (
+                  <option key={c.madanhmuc} value={c.madanhmuc}>{c.tendanhmuc}</option>
                 ))}
               </select>
               {errors.maDanhMuc && <p className="text-red-500 text-xs mt-1">{errors.maDanhMuc.message}</p>}
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             {/* Unit */}
             <div>
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Đơn vị tính <span className="text-red-500">*</span></label>
@@ -123,21 +234,31 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
               />
               {errors.donViTinh && <p className="text-red-500 text-xs mt-1">{errors.donViTinh.message}</p>}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             {/* Price */}
             <div>
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Đơn giá (VNĐ) <span className="text-red-500">*</span></label>
               <input
                 type="number"
+                min="0"
+                step="1000"
+                onWheel={(e) => handleWheelNumber(e, 0, 1000, setValue, 'giaDon')}
+                onKeyDown={handlePreventNegativeKeys}
                 {...register('giaDon', { required: 'Vui lòng nhập giá', min: { value: 0, message: 'Giá không được âm' } })}
+                onInput={(e) => {
+                  if (e.target.value !== '' && Number(e.target.value) < 0) {
+                    e.target.value = '0';
+                    setValue('giaDon', 0, { shouldValidate: true });
+                  }
+                }}
                 className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
                 placeholder="0"
               />
               {errors.giaDon && <p className="text-red-500 text-xs mt-1">{errors.giaDon.message}</p>}
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             {/* Expiry Date */}
             <div>
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Hạn sử dụng</label>
@@ -147,7 +268,32 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
                 className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
               />
             </div>
+
+            {/* Supplier */}
+            <div>
+              <label className="block text-sm font-semibold text-brand-dark mb-1.5">Mã NCC</label>
+              <input
+                {...register('maNCC')}
+                className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                placeholder="VD: NCC001"
+              />
+            </div>
           </div>
+
+          {/* Status (only for edit) */}
+          {isEdit && (
+            <div>
+              <label className="block text-sm font-semibold text-brand-dark mb-1.5">Trạng thái <span className="text-red-500">*</span></label>
+              <select
+                {...register('trangThai', { required: 'Vui lòng chọn trạng thái' })}
+                className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary bg-white"
+              >
+                <option value="Còn hàng">Còn hàng</option>
+                <option value="Hết hàng">Hết hàng</option>
+                <option value="Ngừng bán">Ngừng bán</option>
+              </select>
+            </div>
+          )}
 
           {/* Description */}
           <div>
@@ -197,33 +343,6 @@ function ProductFormModal({ product, categories, onClose, onSave, isSaving }) {
               </div>
             </div>
             {hinhAnhUrl && <p className="text-xs text-green-600 mt-2 font-medium">Đã tải ảnh lên thành công.</p>}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Supplier */}
-            <div>
-              <label className="block text-sm font-semibold text-brand-dark mb-1.5">Mã NCC</label>
-              <input
-                {...register('maNCC')}
-                className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-                placeholder="VD: NCC001"
-              />
-            </div>
-
-            {/* Status (only for edit) */}
-            {isEdit && (
-              <div>
-                <label className="block text-sm font-semibold text-brand-dark mb-1.5">Trạng thái <span className="text-red-500">*</span></label>
-                <select
-                  {...register('trangThai', { required: 'Vui lòng chọn trạng thái' })}
-                  className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary bg-white"
-                >
-                  <option value="Còn hàng">Còn hàng</option>
-                  <option value="Hết hàng">Hết hàng</option>
-                  <option value="Ngừng bán">Ngừng bán</option>
-                </select>
-              </div>
-            )}
           </div>
 
           {/* Submit */}
@@ -419,13 +538,32 @@ function ImportWarehouseModal({ products, onClose, onSave, isSaving }) {
     }
   });
 
-  const { register, control, handleSubmit, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, setValue, formState: { errors } } = useForm({
     defaultValues: { maNCC: '', ghiChu: '', chiTiet: [{ maSanpham: '', soLuong: 1, donGia: 0, hanSuDung: '' }] }
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'chiTiet' });
 
   const onSubmit = (data) => {
+    for (let i = 0; i < data.chiTiet.length; i++) {
+      const item = data.chiTiet[i];
+      const soLuong = parseInt(item.soLuong, 10);
+      const donGia = parseFloat(item.donGia);
+
+      if (!item.maSanpham) {
+        toast.error(`Dòng ${i + 1}: Vui lòng chọn sản phẩm`);
+        return;
+      }
+      if (isNaN(soLuong) || soLuong < 1) {
+        toast.error(`Dòng ${i + 1}: Số lượng nhập phải lớn hơn hoặc bằng 1`);
+        return;
+      }
+      if (isNaN(donGia) || donGia < 0) {
+        toast.error(`Dòng ${i + 1}: Giá nhập không được nhỏ hơn 0`);
+        return;
+      }
+    }
+
     const chiTiet = data.chiTiet.map(item => ({
       maSanpham: item.maSanpham,
       soLuong: parseInt(item.soLuong, 10),
@@ -499,7 +637,20 @@ function ImportWarehouseModal({ products, onClose, onSave, isSaving }) {
                     <label className="block text-xs font-semibold text-gray-500 mb-1">Số lượng</label>
                     <input
                       type="number"
-                      {...register(`chiTiet.${idx}.soLuong`, { required: true, min: 1 })}
+                      min="1"
+                      step="1"
+                      onWheel={(e) => handleWheelNumber(e, 1, 1, setValue, `chiTiet.${idx}.soLuong`)}
+                      onKeyDown={handlePreventNegativeKeys}
+                      {...register(`chiTiet.${idx}.soLuong`, {
+                        required: 'Vui lòng nhập số lượng',
+                        min: { value: 1, message: 'Số lượng phải lớn hơn 0' }
+                      })}
+                      onInput={(e) => {
+                        if (e.target.value !== '' && Number(e.target.value) < 1) {
+                          e.target.value = '1';
+                          setValue(`chiTiet.${idx}.soLuong`, 1, { shouldValidate: true });
+                        }
+                      }}
                       className="w-full border border-brand-light rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-primary"
                     />
                   </div>
@@ -508,7 +659,20 @@ function ImportWarehouseModal({ products, onClose, onSave, isSaving }) {
                     <label className="block text-xs font-semibold text-gray-500 mb-1">Giá nhập (VNĐ)</label>
                     <input
                       type="number"
-                      {...register(`chiTiet.${idx}.donGia`, { required: true, min: 0 })}
+                      min="0"
+                      step="1000"
+                      onWheel={(e) => handleWheelNumber(e, 0, 1000, setValue, `chiTiet.${idx}.donGia`)}
+                      onKeyDown={handlePreventNegativeKeys}
+                      {...register(`chiTiet.${idx}.donGia`, {
+                        required: 'Vui lòng nhập giá',
+                        min: { value: 0, message: 'Giá nhập không được âm' }
+                      })}
+                      onInput={(e) => {
+                        if (e.target.value !== '' && Number(e.target.value) < 0) {
+                          e.target.value = '0';
+                          setValue(`chiTiet.${idx}.donGia`, 0, { shouldValidate: true });
+                        }
+                      }}
                       className="w-full border border-brand-light rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-primary"
                     />
                   </div>
@@ -556,7 +720,7 @@ function ImportWarehouseModal({ products, onClose, onSave, isSaving }) {
 
 // ===== EXPORT WAREHOUSE MODAL =====
 function ExportWarehouseModal({ products, onClose, onSave, isSaving }) {
-  const { register, control, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: { ghiChu: '', chiTiet: [{ maSanpham: '', soLuong: 1, donGia: 0 }] }
   });
 
@@ -564,9 +728,26 @@ function ExportWarehouseModal({ products, onClose, onSave, isSaving }) {
   const watchDetails = watch('chiTiet');
 
   const onSubmit = (data) => {
-    for (const item of data.chiTiet) {
+    for (let i = 0; i < data.chiTiet.length; i++) {
+      const item = data.chiTiet[i];
+      const soLuong = parseInt(item.soLuong, 10);
+      const donGia = parseFloat(item.donGia);
+
+      if (!item.maSanpham) {
+        toast.error(`Dòng ${i + 1}: Vui lòng chọn sản phẩm`);
+        return;
+      }
+      if (isNaN(soLuong) || soLuong < 1) {
+        toast.error(`Dòng ${i + 1}: Số lượng xuất phải lớn hơn hoặc bằng 1`);
+        return;
+      }
+      if (isNaN(donGia) || donGia < 0) {
+        toast.error(`Dòng ${i + 1}: Giá xuất không được nhỏ hơn 0`);
+        return;
+      }
+
       const prod = products.find(p => p.masanpham === item.maSanpham);
-      if (prod && prod.soluongton < parseInt(item.soLuong, 10)) {
+      if (prod && prod.soluongton < soLuong) {
         toast.error(`Sản phẩm [${prod.tensanpham}] không đủ tồn kho để xuất! (Tồn kho hiện tại: ${prod.soluongton})`);
         return;
       }
@@ -638,11 +819,22 @@ function ExportWarehouseModal({ products, onClose, onSave, isSaving }) {
                       </label>
                       <input
                         type="number"
+                        min="1"
+                        max={currentStock || undefined}
+                        step="1"
+                        onWheel={(e) => handleWheelNumber(e, 1, 1, setValue, `chiTiet.${idx}.soLuong`, currentStock)}
+                        onKeyDown={handlePreventNegativeKeys}
                         {...register(`chiTiet.${idx}.soLuong`, {
                           required: true,
                           min: 1,
                           max: { value: currentStock, message: `Vượt quá hàng tồn kho (${currentStock})` }
                         })}
+                        onInput={(e) => {
+                          if (e.target.value !== '' && Number(e.target.value) < 1) {
+                            e.target.value = '1';
+                            setValue(`chiTiet.${idx}.soLuong`, 1, { shouldValidate: true });
+                          }
+                        }}
                         className="w-full border border-brand-light rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-primary"
                       />
                     </div>
@@ -651,7 +843,17 @@ function ExportWarehouseModal({ products, onClose, onSave, isSaving }) {
                       <label className="block text-xs font-semibold text-gray-500 mb-1">Giá xuất (VNĐ)</label>
                       <input
                         type="number"
+                        min="0"
+                        step="1000"
+                        onWheel={(e) => handleWheelNumber(e, 0, 1000, setValue, `chiTiet.${idx}.donGia`)}
+                        onKeyDown={handlePreventNegativeKeys}
                         {...register(`chiTiet.${idx}.donGia`, { required: true, min: 0 })}
+                        onInput={(e) => {
+                          if (e.target.value !== '' && Number(e.target.value) < 0) {
+                            e.target.value = '0';
+                            setValue(`chiTiet.${idx}.donGia`, 0, { shouldValidate: true });
+                          }
+                        }}
                         className="w-full border border-brand-light rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-primary"
                       />
                     </div>

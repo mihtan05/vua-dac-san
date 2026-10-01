@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
-import { ShoppingCart, LogIn, LayoutDashboard, LogOut, ShoppingBag, ChevronDown, User } from 'lucide-react';
+import { ShoppingCart, LogIn, LayoutDashboard, LogOut, ShoppingBag, ChevronDown, User, MapPin } from 'lucide-react';
 
 export default function CustomerLayout() {
   const { user, clearAuth } = useAuthStore();
@@ -148,6 +148,10 @@ export default function CustomerLayout() {
                       <Link to="/profile" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-brand-dark hover:bg-brand-light hover:text-brand-primary transition">
                         <User size={18} />
                         <span>Thông tin cá nhân</span>
+                      </Link>
+                      <Link to="/profile?tab=addresses" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-brand-dark hover:bg-brand-light hover:text-brand-primary transition">
+                        <MapPin size={18} />
+                        <span>Địa chỉ nhận hàng</span>
                       </Link>
                       <Link to="/my-orders" className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-brand-dark hover:bg-brand-light hover:text-brand-primary transition">
                         <ShoppingBag size={18} />

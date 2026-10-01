@@ -24,6 +24,9 @@ router.post('/', requireRole(['NHAN_VIEN', 'QUAN_LY']), CustomerController.creat
 router.get('/:id', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.getCustomerById);
 router.put('/:id', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.updateCustomer);
 router.post('/:id/addresses', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.addAddress);
+router.put('/:id/addresses/:addressId', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.updateAddress);
+router.delete('/:id/addresses/:addressId', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.deleteAddress);
+router.patch('/:id/addresses/:addressId/default', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.setDefaultAddress);
 router.delete('/:id', requireRole(['NHAN_VIEN', 'QUAN_LY']), CustomerController.deleteCustomer);
 router.get('/:id/orders', requireRole(['NHAN_VIEN', 'QUAN_LY', 'KHACH_HANG']), CustomerController.getCustomerOrders);
 

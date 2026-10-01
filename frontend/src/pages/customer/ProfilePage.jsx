@@ -1,16 +1,37 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customerApi } from '../../api/customerApi';
 import { contentApi } from '../../api/contentApi';
-import { User, MessageSquare, Loader2, Save, Lock, Eye, EyeOff, Pencil, X, CheckCircle, ShieldCheck } from 'lucide-react';
+import { User, MessageSquare, Loader2, Save, Lock, Eye, EyeOff, Pencil, X, CheckCircle, ShieldCheck, MapPin, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('info');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'info');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['info', 'addresses', 'password', 'requests'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   // --- Edit mode state for info tab ---
   const [isEditing, setIsEditing] = useState(false);
+
+  // --- Address state ---
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+  const [addressText, setAddressText] = useState('');
+  const [addressIsDefault, setAddressIsDefault] = useState(false);
+  const [addressToDelete, setAddressToDelete] = useState(null);
 
   // --- Password verification state ---
   const [isPasswordVerified, setIsPasswordVerified] = useState(false);
@@ -106,6 +127,90 @@ export default function ProfilePage() {
       toast.error(msg);
     }
   });
+
+  // --- Address Mutations & Handlers ---
+  const addAddressMutation = useMutation({
+    mutationFn: (data) => customerApi.addAddress('me', data),
+    onSuccess: () => {
+      toast.success('Thêm địa chỉ nhận hàng thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+      setShowAddressModal(false);
+      setAddressText('');
+      setAddressIsDefault(false);
+      setEditingAddress(null);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Không thể thêm địa chỉ')
+  });
+
+  const updateAddressMutation = useMutation({
+    mutationFn: ({ addressId, data }) => customerApi.updateAddress('me', addressId, data),
+    onSuccess: () => {
+      toast.success('Cập nhật địa chỉ nhận hàng thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+      setShowAddressModal(false);
+      setAddressText('');
+      setAddressIsDefault(false);
+      setEditingAddress(null);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Không thể cập nhật địa chỉ')
+  });
+
+  const deleteAddressMutation = useMutation({
+    mutationFn: (addressId) => customerApi.deleteAddress('me', addressId),
+    onSuccess: () => {
+      toast.success('Xóa địa chỉ thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+      setAddressToDelete(null);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Không thể xóa địa chỉ')
+  });
+
+  const setDefaultAddressMutation = useMutation({
+    mutationFn: (addressId) => customerApi.setDefaultAddress('me', addressId),
+    onSuccess: () => {
+      toast.success('Thiết lập địa chỉ mặc định thành công!');
+      queryClient.invalidateQueries({ queryKey: ['my-profile'] });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Không thể đặt làm địa chỉ mặc định')
+  });
+
+  const handleOpenAddAddress = () => {
+    setEditingAddress(null);
+    setAddressText('');
+    setAddressIsDefault(!customer?.diaChi || customer.diaChi.length === 0);
+    setShowAddressModal(true);
+  };
+
+  const handleOpenEditAddress = (addr) => {
+    setEditingAddress(addr);
+    setAddressText(addr.diachichitiet || addr.diaChiChiTiet || '');
+    setAddressIsDefault(!!addr.lamacdinh);
+    setShowAddressModal(true);
+  };
+
+  const handleAddressSubmit = (e) => {
+    e.preventDefault();
+    if (!addressText.trim()) {
+      toast.error('Vui lòng nhập địa chỉ chi tiết');
+      return;
+    }
+
+    if (editingAddress) {
+      const addrId = editingAddress.madiaChi || editingAddress.madiachi;
+      updateAddressMutation.mutate({
+        addressId: addrId,
+        data: {
+          diaChiChiTiet: addressText.trim(),
+          laMacDinh: addressIsDefault
+        }
+      });
+    } else {
+      addAddressMutation.mutate({
+        diaChiChiTiet: addressText.trim(),
+        laMacDinh: addressIsDefault || !customer?.diaChi || customer.diaChi.length === 0
+      });
+    }
+  };
 
   const handleCancelEdit = () => {
     // Revert form data to original customer data
@@ -213,7 +318,7 @@ export default function ProfilePage() {
         {/* Sidebar Tabs */}
         <div className="col-span-1 space-y-2">
           <button
-            onClick={() => setActiveTab('info')}
+            onClick={() => handleTabChange('info')}
             className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'info' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
               }`}
           >
@@ -221,7 +326,22 @@ export default function ProfilePage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('password')}
+            onClick={() => handleTabChange('addresses')}
+            className={`w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'addresses' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <MapPin size={20} /> Địa chỉ nhận hàng
+            </div>
+            {customer?.diaChi && customer.diaChi.length > 0 && (
+              <span className="bg-brand-light text-brand-dark text-xs px-2 py-0.5 rounded-full font-bold">
+                {customer.diaChi.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => handleTabChange('password')}
             className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'password' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
               }`}
           >
@@ -229,7 +349,7 @@ export default function ProfilePage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('requests')}
+            onClick={() => handleTabChange('requests')}
             className={`w-full flex items-center justify-between gap-3 px-5 py-4 rounded-2xl font-bold transition-all ${activeTab === 'requests' ? 'bg-brand-primary text-brand-dark shadow-sm' : 'bg-white text-gray-500 hover:bg-gray-50 border border-brand-light'
               }`}
           >
@@ -352,6 +472,171 @@ export default function ProfilePage() {
                   </div>
                 )}
               </form>
+
+              {/* Default Address Section */}
+              <div className="pt-6 border-t border-brand-light max-w-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-bold text-sm text-brand-dark">
+                    <MapPin size={18} className="text-brand-primary" />
+                    <span>Địa chỉ nhận hàng mặc định</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('addresses')}
+                    className="text-xs font-bold text-brand-accent hover:underline"
+                  >
+                    Quản lý tất cả địa chỉ ({customer?.diaChi?.length || 0})
+                  </button>
+                </div>
+
+                {(() => {
+                  const defaultAddr = customer?.diaChi?.find(a => a.lamacdinh) || customer?.diaChi?.[0];
+                  if (defaultAddr) {
+                    return (
+                      <div className="p-4 bg-brand-bg/60 rounded-2xl border border-brand-light flex items-start justify-between gap-4">
+                        <div className="space-y-1 text-sm">
+                          <p className="font-semibold text-brand-dark break-words">
+                            {defaultAddr.diachichitiet || defaultAddr.diaChiChiTiet}
+                          </p>
+                          {defaultAddr.lamacdinh && (
+                            <span className="inline-block bg-brand-light text-brand-dark font-bold text-[9px] px-2 py-0.5 rounded-full uppercase">
+                              Mặc định
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditAddress(defaultAddr)}
+                          className="text-xs font-bold text-brand-accent hover:text-brand-dark px-2.5 py-1.5 rounded-lg hover:bg-brand-primary/10 transition flex items-center gap-1 shrink-0"
+                        >
+                          <Pencil size={13} /> Sửa
+                        </button>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-sm text-gray-500 flex items-center justify-between">
+                      <span>Bạn chưa thiết lập địa chỉ nhận hàng nào.</span>
+                      <button
+                        type="button"
+                        onClick={handleOpenAddAddress}
+                        className="text-xs font-bold text-brand-accent hover:underline flex items-center gap-1"
+                      >
+                        <Plus size={14} /> Thêm địa chỉ
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: ADDRESSES */}
+          {activeTab === 'addresses' && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-brand-light pb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-brand-dark font-heading">
+                    Địa chỉ nhận hàng
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Quản lý danh sách địa chỉ nhận hàng để thanh toán nhanh chóng và tiện lợi
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddAddress}
+                  className="flex items-center gap-2 text-sm font-bold text-brand-dark bg-brand-primary hover:bg-brand-primary/90 px-4 py-2.5 rounded-xl transition-all shadow-sm"
+                >
+                  <Plus size={18} />
+                  Thêm địa chỉ mới
+                </button>
+              </div>
+
+              {(!customer.diaChi || customer.diaChi.length === 0) ? (
+                <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-3">
+                  <div className="w-12 h-12 bg-brand-light rounded-full flex items-center justify-center mx-auto text-brand-dark">
+                    <MapPin size={24} />
+                  </div>
+                  <p className="text-sm font-bold text-brand-dark">Bạn chưa có địa chỉ nhận hàng nào</p>
+                  <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                    Thêm địa chỉ nhận hàng giúp bạn dễ dàng hoàn tất đơn hàng chỉ trong vài thao tác.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddAddress}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-dark bg-brand-primary px-4 py-2 rounded-xl hover:bg-brand-primary/90 transition shadow-sm mt-2"
+                  >
+                    <Plus size={16} /> Thêm ngay
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {customer.diaChi.map((addr) => {
+                    const addrId = addr.madiaChi || addr.madiachi;
+                    const isDefault = !!addr.lamacdinh;
+                    return (
+                      <div
+                        key={addrId}
+                        className={`p-5 rounded-2xl border transition-all ${
+                          isDefault
+                            ? 'border-brand-primary bg-brand-primary/5'
+                            : 'border-brand-light bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-brand-dark text-sm">{customer.hoten}</span>
+                              <span className="text-gray-300">|</span>
+                              <span className="text-gray-500 text-sm">{customer.sdt}</span>
+                              {isDefault && (
+                                <span className="bg-brand-primary/20 text-brand-dark text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-brand-primary/30">
+                                  Mặc định
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 break-words leading-relaxed">
+                              {addr.diachichitiet || addr.diaChiChiTiet}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0 self-end sm:self-start">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditAddress(addr)}
+                              className="text-xs font-semibold text-brand-accent hover:underline flex items-center gap-1"
+                            >
+                              <Pencil size={13} /> Sửa
+                            </button>
+
+                            {customer.diaChi.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setAddressToDelete(addr)}
+                                className="text-xs font-semibold text-red-500 hover:underline flex items-center gap-1"
+                              >
+                                <Trash2 size={13} /> Xóa
+                              </button>
+                            )}
+
+                            {!isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => setDefaultAddressMutation.mutate(addrId)}
+                                disabled={setDefaultAddressMutation.isPending}
+                                className="text-xs font-semibold px-3 py-1.5 border border-brand-light rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition"
+                              >
+                                Thiết lập mặc định
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -560,6 +845,92 @@ export default function ProfilePage() {
 
         </div>
       </div>
+
+      {/* ADDRESS MODAL */}
+      {showAddressModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowAddressModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-brand-light pb-3">
+              <h3 className="font-bold font-heading text-brand-dark text-base">
+                {editingAddress ? 'Cập nhật địa chỉ nhận hàng' : 'Thêm địa chỉ nhận hàng mới'}
+              </h3>
+              <button onClick={() => setShowAddressModal(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddressSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-brand-dark">Địa chỉ nhận hàng chi tiết *</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={addressText}
+                  onChange={e => setAddressText(e.target.value)}
+                  placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành..."
+                  className="w-full px-4 py-3 bg-brand-bg rounded-xl border border-brand-light text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:bg-white resize-none"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-brand-dark select-none">
+                <input
+                  type="checkbox"
+                  checked={addressIsDefault}
+                  onChange={(e) => setAddressIsDefault(e.target.checked)}
+                  className="rounded border-brand-light text-brand-primary focus:ring-brand-primary"
+                />
+                <span>Đặt làm địa chỉ nhận hàng mặc định</span>
+              </label>
+              <div className="flex gap-3 pt-3 border-t border-brand-light">
+                <button
+                  type="button"
+                  onClick={() => setShowAddressModal(false)}
+                  className="flex-1 border border-brand-light text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={addAddressMutation.isPending || updateAddressMutation.isPending}
+                  className="flex-1 bg-brand-primary text-brand-dark font-bold py-2.5 rounded-xl text-sm hover:bg-brand-primary/95 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {(addAddressMutation.isPending || updateAddressMutation.isPending) ? <Loader2 className="animate-spin" size={16} /> : null}
+                  {editingAddress ? 'Cập nhật' : 'Thêm địa chỉ'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ADDRESS CONFIRMATION MODAL */}
+      {addressToDelete && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setAddressToDelete(null)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold font-heading text-brand-dark text-base">Xóa địa chỉ nhận hàng</h3>
+            <p className="text-sm text-gray-600">
+              Bạn có chắc chắn muốn xóa địa chỉ:
+              <span className="font-semibold block text-brand-dark mt-1">
+                "{addressToDelete.diachichitiet || addressToDelete.diaChiChiTiet}"
+              </span>
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setAddressToDelete(null)}
+                className="flex-1 border border-brand-light text-gray-600 font-semibold py-2.5 rounded-xl text-sm hover:bg-gray-50 transition"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteAddressMutation.mutate(addressToDelete.madiaChi || addressToDelete.madiachi)}
+                disabled={deleteAddressMutation.isPending}
+                className="flex-1 bg-red-600 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-red-700 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {deleteAddressMutation.isPending ? <Loader2 className="animate-spin" size={16} /> : null}
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

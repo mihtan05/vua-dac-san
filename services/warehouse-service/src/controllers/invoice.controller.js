@@ -70,8 +70,8 @@ export const InvoiceController = {
 
       // Verify each product exists
       for (const item of chiTiet) {
-        if (!item.maSanpham || !item.soLuong || item.soLuong <= 0 || !item.donGia || item.donGia < 0) {
-          return res.status(400).json({ message: 'Thông tin sản phẩm, số lượng, hoặc đơn giá trong chi tiết không hợp lệ' });
+        if (!item.maSanpham || !item.soLuong || Number(item.soLuong) <= 0 || item.donGia === undefined || item.donGia === null || Number(item.donGia) < 0) {
+          return res.status(400).json({ message: 'Thông tin sản phẩm, số lượng (> 0), hoặc đơn giá (>= 0) trong chi tiết không hợp lệ' });
         }
 
         try {
@@ -136,8 +136,8 @@ export const InvoiceController = {
 
       // Verify each product exists and check stock
       for (const item of chiTiet) {
-        if (!item.maSanpham || !item.soLuong || item.soLuong <= 0 || !item.donGia || item.donGia < 0) {
-          return res.status(400).json({ message: 'Thông tin sản phẩm, số lượng, hoặc đơn giá trong chi tiết không hợp lệ' });
+        if (!item.maSanpham || !item.soLuong || Number(item.soLuong) <= 0 || item.donGia === undefined || item.donGia === null || Number(item.donGia) < 0) {
+          return res.status(400).json({ message: 'Thông tin sản phẩm, số lượng (> 0), hoặc đơn giá (>= 0) trong chi tiết không hợp lệ' });
         }
 
         try {

@@ -242,6 +242,117 @@ export const CustomerController = {
     }
   },
 
+  // PUT /customers/:id/addresses/:addressId
+  async updateAddress(req, res) {
+    try {
+      const { id, addressId } = req.params;
+      const { diaChiChiTiet, laMacDinh } = req.body;
+      let customerId = id;
+
+      if (id === 'me') {
+        const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
+        if (!customerRecord) {
+          return res.status(404).json({ message: 'Không tìm thấy thông tin khách hàng tương ứng với tài khoản này' });
+        }
+        customerId = customerRecord.makhachhang;
+      }
+
+      if (!diaChiChiTiet) {
+        return res.status(400).json({ message: 'Địa chỉ chi tiết là bắt buộc' });
+      }
+
+      const roles = req.user.cacQuyen || [req.user.vaiTro];
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
+        const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
+        if (!customerRecord || customerRecord.makhachhang !== customerId) {
+          return res.status(403).json({ message: 'Bạn không có quyền sửa địa chỉ của tài khoản khác' });
+        }
+      }
+
+      const updated = await CustomerModel.updateAddress(addressId, customerId, { 
+        diaChiChiTiet, 
+        laMacDinh: laMacDinh !== undefined ? !!laMacDinh : false 
+      });
+
+      if (!updated) {
+        return res.status(404).json({ message: 'Không tìm thấy địa chỉ nhận hàng để cập nhật' });
+      }
+
+      return res.json({ message: 'Cập nhật địa chỉ nhận hàng thành công', address: updated });
+    } catch (err) {
+      console.error('Error updating address:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi cập nhật địa chỉ' });
+    }
+  },
+
+  // DELETE /customers/:id/addresses/:addressId
+  async deleteAddress(req, res) {
+    try {
+      const { id, addressId } = req.params;
+      let customerId = id;
+
+      if (id === 'me') {
+        const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
+        if (!customerRecord) {
+          return res.status(404).json({ message: 'Không tìm thấy thông tin khách hàng tương ứng với tài khoản này' });
+        }
+        customerId = customerRecord.makhachhang;
+      }
+
+      const roles = req.user.cacQuyen || [req.user.vaiTro];
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
+        const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
+        if (!customerRecord || customerRecord.makhachhang !== customerId) {
+          return res.status(403).json({ message: 'Bạn không có quyền xóa địa chỉ của tài khoản khác' });
+        }
+      }
+
+      const deleted = await CustomerModel.deleteAddress(addressId, customerId);
+      if (!deleted) {
+        return res.status(404).json({ message: 'Không tìm thấy địa chỉ để xóa' });
+      }
+
+      return res.json({ message: 'Xóa địa chỉ nhận hàng thành công' });
+    } catch (err) {
+      console.error('Error deleting address:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi xóa địa chỉ' });
+    }
+  },
+
+  // PATCH /customers/:id/addresses/:addressId/default
+  async setDefaultAddress(req, res) {
+    try {
+      const { id, addressId } = req.params;
+      let customerId = id;
+
+      if (id === 'me') {
+        const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
+        if (!customerRecord) {
+          return res.status(404).json({ message: 'Không tìm thấy thông tin khách hàng tương ứng với tài khoản này' });
+        }
+        customerId = customerRecord.makhachhang;
+      }
+
+      const roles = req.user.cacQuyen || [req.user.vaiTro];
+      if (roles.includes('KHACH_HANG') && !roles.includes('NHAN_VIEN') && !roles.includes('QUAN_LY')) {
+        const customerRecord = await CustomerModel.findByUsername(req.user.tenDangnhap);
+        if (!customerRecord || customerRecord.makhachhang !== customerId) {
+          return res.status(403).json({ message: 'Bạn không có quyền thao tác địa chỉ của tài khoản khác' });
+        }
+      }
+
+      const updated = await CustomerModel.setDefaultAddress(addressId, customerId);
+      if (!updated) {
+        return res.status(404).json({ message: 'Không tìm thấy địa chỉ để thiết lập mặc định' });
+      }
+
+      return res.json({ message: 'Thiết lập địa chỉ mặc định thành công', address: updated });
+    } catch (err) {
+      console.error('Error setting default address:', err);
+      return res.status(500).json({ message: 'Lỗi máy chủ khi thiết lập địa chỉ mặc định' });
+    }
+  },
+
   // DELETE /customers/:id
   async deleteCustomer(req, res) {
     try {

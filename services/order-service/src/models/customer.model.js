@@ -203,5 +203,87 @@ export const CustomerModel = {
     const query = 'UPDATE KHACH_HANG SET trangThai = $1 WHERE maKhachHang = $2 RETURNING *';
     const result = await pool.query(query, [trangThai, id]);
     return result.rows[0];
+  },
+
+  async updateAddress(addressId, customerId, { diaChiChiTiet, laMacDinh = false }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      if (laMacDinh) {
+        await client.query('UPDATE DIA_CHI_KH SET laMacDinh = FALSE WHERE maKhachHang = $1', [customerId]);
+      }
+
+      const query = `
+        UPDATE DIA_CHI_KH
+        SET diaChiChiTiet = COALESCE($1, diaChiChiTiet),
+            laMacDinh = COALESCE($2, laMacDinh)
+        WHERE maDiaChi = $3 AND maKhachHang = $4
+        RETURNING *
+      `;
+      const result = await client.query(query, [diaChiChiTiet, laMacDinh, addressId, customerId]);
+      
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  async deleteAddress(addressId, customerId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const checkRes = await client.query('SELECT * FROM DIA_CHI_KH WHERE maDiaChi = $1 AND maKhachHang = $2', [addressId, customerId]);
+      const targetAddr = checkRes.rows[0];
+
+      if (!targetAddr) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      await client.query('DELETE FROM DIA_CHI_KH WHERE maDiaChi = $1 AND maKhachHang = $2', [addressId, customerId]);
+
+      // Nếu địa chỉ bị xóa là mặc định, tự động set địa chỉ còn lại đầu tiên làm mặc định
+      if (targetAddr.lamacdinh) {
+        await client.query(`
+          UPDATE DIA_CHI_KH 
+          SET laMacDinh = TRUE 
+          WHERE maDiaChi = (
+            SELECT maDiaChi FROM DIA_CHI_KH WHERE maKhachHang = $1 ORDER BY maDiaChi ASC LIMIT 1
+          )
+        `, [customerId]);
+      }
+
+      await client.query('COMMIT');
+      return targetAddr;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+
+  async setDefaultAddress(addressId, customerId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query('UPDATE DIA_CHI_KH SET laMacDinh = FALSE WHERE maKhachHang = $1', [customerId]);
+      const res = await client.query('UPDATE DIA_CHI_KH SET laMacDinh = TRUE WHERE maDiaChi = $1 AND maKhachHang = $2 RETURNING *', [addressId, customerId]);
+
+      await client.query('COMMIT');
+      return res.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 };

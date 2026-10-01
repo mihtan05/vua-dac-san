@@ -209,7 +209,7 @@ export default function CustomerLayout() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-8 pt-8 border-t border-white/5 text-center text-xs">
-          &copy; 2026 Vua Đặc Sản. Sản phẩm bài tập lớn môn kiến trúc và thiết kế phần mềm.
+          &copy; 2026 Vua Đặc Sản.
         </div>
       </footer>
     </div>

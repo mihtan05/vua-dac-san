@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { productApi } from '../../api/productApi';
 import { Search, ShoppingCart, MapPin, Grid, SlidersHorizontal, Loader2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
@@ -14,11 +14,50 @@ const TAG_COLORS = {
 };
 
 export default function ProductsPage() {
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const urlRegion = searchParams.get('region') || '';
+  const urlCategory = searchParams.get('category') || searchParams.get('maDanhMuc') || '';
+  const urlSearch = searchParams.get('search') || '';
+
+  const [search, setSearch] = useState(urlSearch);
+  const [selectedCategory, setSelectedCategory] = useState(urlCategory);
+  const [selectedRegion, setSelectedRegion] = useState(urlRegion);
   const [page, setPage] = useState(1);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Sync state when URL search params change (e.g. clicking top mega menu or browser navigation)
+  useEffect(() => {
+    setSelectedRegion(urlRegion);
+    setSelectedCategory(urlCategory);
+    setSearch(urlSearch);
+    setPage(1);
+  }, [urlRegion, urlCategory, urlSearch]);
+
+  const handleSelectCategory = (catId) => {
+    setSelectedCategory(catId);
+    setPage(1);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (catId) next.set('category', catId);
+      else {
+        next.delete('category');
+        next.delete('maDanhMuc');
+      }
+      return next;
+    });
+  };
+
+  const handleSelectRegion = (reg) => {
+    setSelectedRegion(reg);
+    setPage(1);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (reg) next.set('region', reg);
+      else next.delete('region');
+      return next;
+    });
+  };
 
   // Fetch Categories
   const { data: categoriesData = [] } = useQuery({
@@ -56,6 +95,7 @@ export default function ProductsPage() {
     setSelectedRegion('');
     setSearch('');
     setPage(1);
+    setSearchParams({});
   };
 
   return (
@@ -83,7 +123,7 @@ export default function ProductsPage() {
               <h4 className="font-semibold text-brand-dark text-sm uppercase tracking-wider">Danh mục sản phẩm</h4>
               <div className="space-y-1.5">
                 <button
-                  onClick={() => { setSelectedCategory(''); setPage(1); }}
+                  onClick={() => handleSelectCategory('')}
                   className={`w-full text-left px-3 py-2 rounded-xl text-sm transition duration-150 ${
                     !selectedCategory ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-white hover:text-brand-dark'
                   }`}
@@ -93,7 +133,7 @@ export default function ProductsPage() {
                 {categories.map(cat => (
                   <button
                     key={cat.madanhmuc}
-                    onClick={() => { setSelectedCategory(cat.madanhmuc); setPage(1); }}
+                    onClick={() => handleSelectCategory(cat.madanhmuc)}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition duration-150 ${
                       selectedCategory === cat.madanhmuc ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-white hover:text-brand-dark'
                     }`}
@@ -109,7 +149,7 @@ export default function ProductsPage() {
               <h4 className="font-semibold text-brand-dark text-sm uppercase tracking-wider">Vùng miền đặc trưng</h4>
               <div className="space-y-1.5">
                 <button
-                  onClick={() => { setSelectedRegion(''); setPage(1); }}
+                  onClick={() => handleSelectRegion('')}
                   className={`w-full text-left px-3 py-2 rounded-xl text-sm transition duration-150 ${
                     !selectedRegion ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-white hover:text-brand-dark'
                   }`}
@@ -119,7 +159,7 @@ export default function ProductsPage() {
                 {REGIONS.map(reg => (
                   <button
                     key={reg}
-                    onClick={() => { setSelectedRegion(reg); setPage(1); }}
+                    onClick={() => handleSelectRegion(reg)}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition duration-150 ${
                       selectedRegion === reg ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-white hover:text-brand-dark'
                     }`}
@@ -288,7 +328,7 @@ export default function ProductsPage() {
                 <h4 className="font-semibold text-brand-dark text-xs uppercase tracking-wider">Danh mục</h4>
                 <div className="space-y-1">
                   <button
-                    onClick={() => { setSelectedCategory(''); setPage(1); }}
+                    onClick={() => handleSelectCategory('')}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${
                       !selectedCategory ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-brand-bg'
                     }`}
@@ -298,7 +338,7 @@ export default function ProductsPage() {
                   {categories.map(cat => (
                     <button
                       key={cat.madanhmuc}
-                      onClick={() => { setSelectedCategory(cat.madanhmuc); setPage(1); }}
+                      onClick={() => handleSelectCategory(cat.madanhmuc)}
                       className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${
                         selectedCategory === cat.madanhmuc ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-brand-bg'
                       }`}
@@ -314,7 +354,7 @@ export default function ProductsPage() {
                 <h4 className="font-semibold text-brand-dark text-xs uppercase tracking-wider">Vùng miền</h4>
                 <div className="space-y-1">
                   <button
-                    onClick={() => { setSelectedRegion(''); setPage(1); }}
+                    onClick={() => handleSelectRegion('')}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${
                       !selectedRegion ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-brand-bg'
                     }`}
@@ -324,7 +364,7 @@ export default function ProductsPage() {
                   {REGIONS.map(reg => (
                     <button
                       key={reg}
-                      onClick={() => { setSelectedRegion(reg); setPage(1); }}
+                      onClick={() => handleSelectRegion(reg)}
                       className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${
                         selectedRegion === reg ? 'bg-brand-primary text-brand-dark font-bold' : 'text-gray-600 hover:bg-brand-bg'
                       }`}

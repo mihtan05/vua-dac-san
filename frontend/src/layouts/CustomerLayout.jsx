@@ -86,10 +86,10 @@ export default function CustomerLayout() {
                   <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Danh Mục Phổ Biến</h3>
                     <ul className="space-y-3 pt-2">
-                      <li><Link to="/products" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Đồ khô & Gác bếp</Link></li>
-                      <li><Link to="/products" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Bánh mứt & Kẹo</Link></li>
-                      <li><Link to="/products" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Gia vị truyền thống</Link></li>
-                      <li><Link to="/products" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Thức uống & Trà</Link></li>
+                      <li><Link to="/products?category=DM001" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Đồ khô & Gác bếp</Link></li>
+                      <li><Link to="/products?category=DM002" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Bánh mứt & Kẹo</Link></li>
+                      <li><Link to="/products?category=DM004" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Gia vị truyền thống</Link></li>
+                      <li><Link to="/products?category=DM005" className="text-sm font-semibold text-brand-dark hover:text-brand-primary transition">Thức uống & Trà</Link></li>
                       <li>
                         <Link to="/products" className="mt-4 inline-flex text-xs font-bold bg-brand-light text-brand-dark px-4 py-2 rounded-lg hover:bg-brand-primary transition">
                           Xem tất cả &rarr;

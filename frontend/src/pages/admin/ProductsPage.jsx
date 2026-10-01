@@ -10,21 +10,6 @@ import {
   ArrowDownCircle, ArrowUpCircle, History, CalendarRange
 } from 'lucide-react';
 
-const MOCK_PRODUCTS = [
-  { masanpham: 'SP001', tensanpham: 'Bánh Pía Sầu Riêng Sóc Trăng', madanhmuc: 'DM001', tendanhmuc: 'Bánh kẹo', vungmien: 'Nam', donvitinh: 'Hộp', giadon: '85000', soluongton: 120, hansudung: '2026-08-15', trangthai: 'Còn hàng', mancc: 'NCC001' },
-  { masanpham: 'SP002', tensanpham: 'Kẹo Dừa Bến Tre Nguyên Chất', madanhmuc: 'DM001', tendanhmuc: 'Bánh kẹo', vungmien: 'Nam', donvitinh: 'Gói', giadon: '65000', soluongton: 200, hansudung: '2026-09-01', trangthai: 'Còn hàng', mancc: 'NCC002' },
-  { masanpham: 'SP003', tensanpham: 'Mắm Tôm Chua Huế Loại 1', madanhmuc: 'DM002', tendanhmuc: 'Gia vị mắm', vungmien: 'Trung', donvitinh: 'Hũ', giadon: '120000', soluongton: 45, hansudung: '2026-07-03', trangthai: 'Còn hàng', mancc: 'NCC003' },
-  { masanpham: 'SP004', tensanpham: 'Thịt Trâu Gác Bếp Điện Biên', madanhmuc: 'DM003', tendanhmuc: 'Thịt khô', vungmien: 'Bắc', donvitinh: 'Gói', giadon: '280000', soluongton: 35, hansudung: '2026-12-31', trangthai: 'Còn hàng', mancc: 'NCC004' },
-  { masanpham: 'SP005', tensanpham: 'Nước Mắm Phú Quốc 500ml', madanhmuc: 'DM002', tendanhmuc: 'Gia vị mắm', vungmien: 'Nam', donvitinh: 'Chai', giadon: '95000', soluongton: 150, hansudung: '2027-01-01', trangthai: 'Còn hàng', mancc: 'NCC005' },
-  { masanpham: 'SP006', tensanpham: 'Chả Hoa Năm Thụy Trà Vinh', madanhmuc: 'DM004', tendanhmuc: 'Chả giò', vungmien: 'Nam', donvitinh: 'Gói', giadon: '145000', soluongton: 0, hansudung: '2026-06-30', trangthai: 'Hết hàng', mancc: 'NCC006' },
-];
-
-const MOCK_CATEGORIES = [
-  { madanhmuc: 'DM001', tendanhmuc: 'Bánh kẹo', vungmien: 'Nam' },
-  { madanhmuc: 'DM002', tendanhmuc: 'Gia vị mắm', vungmien: 'Trung' },
-  { madanhmuc: 'DM003', tendanhmuc: 'Thịt khô', vungmien: 'Bắc' },
-  { madanhmuc: 'DM004', tendanhmuc: 'Chả giò', vungmien: 'Nam' },
-];
 
 const daysUntil = (dateStr) => {
   if (!dateStr) return 999;
@@ -737,7 +722,7 @@ export default function ProductsPage() {
         const arr = Array.isArray(raw) ? raw : (raw?.data || raw?.items || []);
         return { data: arr, total: arr.length, page: 1, totalPages: 1 };
       } catch {
-        return { data: MOCK_PRODUCTS, total: MOCK_PRODUCTS.length, page: 1, totalPages: 1 };
+        return { data: [], total: 0, page: 1, totalPages: 1 };
       }
     }
   });
@@ -750,7 +735,7 @@ export default function ProductsPage() {
         const res = await productApi.getCategories();
         return Array.isArray(res.data) ? res.data : [];
       } catch {
-        return MOCK_CATEGORIES;
+        return [];
       }
     }
   });

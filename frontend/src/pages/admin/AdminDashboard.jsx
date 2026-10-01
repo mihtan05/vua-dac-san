@@ -61,12 +61,8 @@ export default function AdminDashboard() {
         const raw = expRes.data;
         expiryWarnings = Array.isArray(raw) ? raw : (raw?.data || raw?.items || []);
       } catch (err) {
-        console.warn('Could not fetch expiry warnings, using mock fallback', err);
-        expiryWarnings = [
-          { masanpham: 'SP001', tensanpham: 'Bánh Pía Sầu Riêng Sóc Trăng', hansudung: '2026-07-02', soluongton: 45, songayconlai: 4 },
-          { masanpham: 'SP002', tensanpham: 'Kẹo Dừa Bến Tre Nguyên Chất', hansudung: '2026-07-09', soluongton: 110, songayconlai: 11 },
-          { masanpham: 'SP003', tensanpham: 'Chả Hoa Năm Thụy Trà Vinh', hansudung: '2026-06-30', soluongton: 15, songayconlai: 2 }
-        ];
+        console.warn('Could not fetch expiry warnings', err);
+        expiryWarnings = [];
       }
 
       // 3. Fetch New Orders

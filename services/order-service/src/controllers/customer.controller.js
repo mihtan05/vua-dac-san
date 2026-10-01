@@ -45,16 +45,38 @@ export const CustomerController = {
         return res.status(400).json({ message: 'Họ tên và số điện thoại là bắt buộc' });
       }
 
+      const cleanEmail = email && typeof email === 'string' && email.trim() !== '' ? email.trim() : null;
+      const cleanNgaySinh = ngaySinh && typeof ngaySinh === 'string' && ngaySinh.trim() !== '' ? ngaySinh.trim() : null;
+
       // Check unique
       const existingSdt = await CustomerModel.findBySdt(sdt);
       if (existingSdt) {
         return res.status(400).json({ message: 'Số điện thoại đã tồn tại trên hệ thống' });
       }
 
-      if (email) {
-        const existingEmail = await CustomerModel.findByEmail(email);
+      if (cleanEmail) {
+        const existingEmail = await CustomerModel.findByEmail(cleanEmail);
         if (existingEmail) {
           return res.status(400).json({ message: 'Email đã tồn tại trên hệ thống' });
+        }
+      }
+
+      if (cleanNgaySinh) {
+        const birthDate = new Date(cleanNgaySinh);
+        if (isNaN(birthDate.getTime())) {
+          return res.status(400).json({ message: 'Ngày sinh không hợp lệ' });
+        }
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          return res.status(400).json({ message: 'Khách hàng phải từ đủ 18 tuổi trở lên' });
+        }
+        if (age > 120) {
+          return res.status(400).json({ message: 'Ngày sinh không hợp lệ' });
         }
       }
 
@@ -63,8 +85,8 @@ export const CustomerController = {
         maKhachHang,
         hoTen,
         sdt,
-        email,
-        ngaySinh,
+        email: cleanEmail,
+        ngaySinh: cleanNgaySinh,
         diaChi,
         trangThai: 1
       });
@@ -184,6 +206,9 @@ export const CustomerController = {
         return res.status(404).json({ message: 'Không tìm thấy khách hàng' });
       }
 
+      const cleanEmail = email && typeof email === 'string' && email.trim() !== '' ? email.trim() : null;
+      const cleanNgaySinh = ngaySinh && typeof ngaySinh === 'string' && ngaySinh.trim() !== '' ? ngaySinh.trim() : null;
+
       if (sdt && sdt !== customer.sdt) {
         const existingSdt = await CustomerModel.findBySdt(sdt);
         if (existingSdt) {
@@ -191,18 +216,43 @@ export const CustomerController = {
         }
       }
 
-      if (email && email !== customer.email) {
-        const existingEmail = await CustomerModel.findByEmail(email);
+      if (cleanEmail && cleanEmail !== customer.email) {
+        const existingEmail = await CustomerModel.findByEmail(cleanEmail);
         if (existingEmail) {
           return res.status(400).json({ message: 'Email đã tồn tại trên hệ thống' });
         }
       }
 
-      const updated = await CustomerModel.updateCustomer(customerId, { hoTen, sdt, email, ngaySinh, trangThai });
+      if (cleanNgaySinh) {
+        const birthDate = new Date(cleanNgaySinh);
+        if (isNaN(birthDate.getTime())) {
+          return res.status(400).json({ message: 'Ngày sinh không hợp lệ' });
+        }
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        if (age < 18) {
+          return res.status(400).json({ message: 'Khách hàng phải từ đủ 18 tuổi trở lên' });
+        }
+        if (age > 120) {
+          return res.status(400).json({ message: 'Ngày sinh không hợp lệ' });
+        }
+      }
+
+      const updated = await CustomerModel.updateCustomer(customerId, {
+        hoTen,
+        sdt,
+        email: cleanEmail,
+        ngaySinh: cleanNgaySinh,
+        trangThai
+      });
       return res.json({ message: 'Cập nhật thông tin khách hàng thành công', customer: updated });
     } catch (err) {
       console.error('Error updating customer:', err);
-      return res.status(500).json({ message: 'Lỗi máy chủ' });
+      return res.status(500).json({ message: err.message || 'Lỗi máy chủ khi cập nhật khách hàng' });
     }
   },
 

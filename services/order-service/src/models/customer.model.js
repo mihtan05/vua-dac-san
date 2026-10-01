@@ -84,17 +84,43 @@ export const CustomerModel = {
   },
 
   async updateCustomer(id, { hoTen, sdt, email, ngaySinh, trangThai }) {
+    const fields = [];
+    const values = [];
+    let idx = 1;
+
+    if (hoTen !== undefined && hoTen !== null) {
+      fields.push(`hoTen = $${idx++}`);
+      values.push(hoTen);
+    }
+    if (sdt !== undefined && sdt !== null) {
+      fields.push(`sdt = $${idx++}`);
+      values.push(sdt);
+    }
+    if (email !== undefined) {
+      fields.push(`email = $${idx++}`);
+      values.push(email && typeof email === 'string' && email.trim() !== '' ? email.trim() : null);
+    }
+    if (ngaySinh !== undefined) {
+      fields.push(`ngaySinh = $${idx++}`);
+      values.push(ngaySinh && typeof ngaySinh === 'string' && ngaySinh.trim() !== '' ? ngaySinh.trim() : null);
+    }
+    if (trangThai !== undefined && trangThai !== null) {
+      fields.push(`trangThai = $${idx++}`);
+      values.push(trangThai);
+    }
+
+    if (fields.length === 0) {
+      return this.findById(id);
+    }
+
+    values.push(id);
     const query = `
       UPDATE KHACH_HANG 
-      SET hoTen = COALESCE($1, hoTen),
-          sdt = COALESCE($2, sdt),
-          email = COALESCE($3, email),
-          ngaySinh = COALESCE($4, ngaySinh),
-          trangThai = COALESCE($5, trangThai)
-      WHERE maKhachHang = $6
+      SET ${fields.join(', ')}
+      WHERE maKhachHang = $${idx}
       RETURNING *
     `;
-    const result = await pool.query(query, [hoTen, sdt, email, ngaySinh, trangThai, id]);
+    const result = await pool.query(query, values);
     return result.rows[0];
   },
 

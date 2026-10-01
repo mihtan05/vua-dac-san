@@ -6,6 +6,12 @@ import { contentApi } from '../../api/contentApi';
 import { User, MessageSquare, Loader2, Save, Lock, Eye, EyeOff, Pencil, X, CheckCircle, ShieldCheck, MapPin, Trash2, Plus } from 'lucide-react';
 import { toast } from 'react-toastify';
 
+const getMaxBirthDate = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().split('T')[0];
+};
+
 export default function ProfilePage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -235,9 +241,26 @@ export default function ProfilePage() {
       toast.error('Số điện thoại phải gồm đúng 10 chữ số');
       return;
     }
-    if (formData.ngaySinh && formData.ngaySinh > '2008-12-31') {
-      toast.error('Bạn phải đủ 18 tuổi trở lên');
-      return;
+    if (formData.ngaySinh) {
+      const birthDate = new Date(formData.ngaySinh);
+      if (isNaN(birthDate.getTime())) {
+        toast.error('Ngày sinh không hợp lệ');
+        return;
+      }
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      if (age < 18) {
+        toast.error('Khách hàng phải từ đủ 18 tuổi trở lên');
+        return;
+      }
+      if (age > 120) {
+        toast.error('Ngày sinh không hợp lệ');
+        return;
+      }
     }
     updateProfileMutation.mutate(formData);
   };
@@ -438,7 +461,7 @@ export default function ProfilePage() {
                   <input
                     type="date"
                     value={formData.ngaySinh}
-                    max="2008-12-31"
+                    max={getMaxBirthDate()}
                     onChange={(e) => setFormData({ ...formData, ngaySinh: e.target.value })}
                     disabled={!isEditing}
                     className={`w-full px-4 py-3 rounded-xl border transition-all ${

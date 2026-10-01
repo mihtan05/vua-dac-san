@@ -25,6 +25,12 @@ const handleNumericKeyDown = (e) => {
   }
 };
 
+const getMaxBirthDate = () => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d.toISOString().split('T')[0];
+};
+
 // ===== CUSTOMER FORM MODAL =====
 function CustomerFormModal({ customer, onClose, onSave, isSaving }) {
   const isEdit = !!customer;
@@ -99,10 +105,16 @@ function CustomerFormModal({ customer, onClose, onSave, isSaving }) {
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Email</label>
               <input
                 type="email"
-                {...register('email')}
+                {...register('email', {
+                  pattern: {
+                    value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                    message: 'Email không đúng định dạng (VD: example@gmail.com)'
+                  }
+                })}
                 className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
                 placeholder="email@example.com"
               />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
             </div>
           </div>
 
@@ -111,9 +123,30 @@ function CustomerFormModal({ customer, onClose, onSave, isSaving }) {
               <label className="block text-sm font-semibold text-brand-dark mb-1.5">Ngày sinh</label>
               <input
                 type="date"
-                {...register('ngaySinh')}
+                max={getMaxBirthDate()}
+                {...register('ngaySinh', {
+                  validate: (val) => {
+                    if (!val) return true;
+                    const birthDate = new Date(val);
+                    if (isNaN(birthDate.getTime())) return 'Ngày sinh không hợp lệ';
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const m = today.getMonth() - birthDate.getMonth();
+                    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                      age--;
+                    }
+                    if (age < 18) {
+                      return 'Khách hàng phải từ đủ 18 tuổi trở lên';
+                    }
+                    if (age > 120) {
+                      return 'Ngày sinh không hợp lệ (tuổi không được quá 120)';
+                    }
+                    return true;
+                  }
+                })}
                 className="w-full border border-brand-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
               />
+              {errors.ngaySinh && <p className="text-red-500 text-xs mt-1">{errors.ngaySinh.message}</p>}
             </div>
 
             {isEdit && (
@@ -242,7 +275,11 @@ export default function CustomersPage() {
   const totalPages = custData?.totalPages || 1;
 
   const createMutation = useMutation({
-    mutationFn: (data) => customerApi.create(data),
+    mutationFn: (data) => customerApi.create({
+      ...data,
+      email: data.email?.trim() || null,
+      ngaySinh: data.ngaySinh || null
+    }),
     onSuccess: () => {
       toast.success('Thêm khách hàng thành công!');
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -252,7 +289,11 @@ export default function CustomersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => customerApi.update(id, data),
+    mutationFn: ({ id, data }) => customerApi.update(id, {
+      ...data,
+      email: data.email?.trim() || null,
+      ngaySinh: data.ngaySinh || null
+    }),
     onSuccess: () => {
       toast.success('Cập nhật khách hàng thành công!');
       queryClient.invalidateQueries({ queryKey: ['customers'] });

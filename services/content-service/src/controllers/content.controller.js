@@ -304,9 +304,9 @@ export const ContentController = {
   async replySupportRequest(req, res) {
     try {
       const { id } = req.params;
-      const { noiDungPhanHoi } = req.body;
+      const { noiDungPhanHoi, trangThai = 'Đã xử lý' } = req.body;
 
-      if (!noiDungPhanHoi) {
+      if (!noiDungPhanHoi || !noiDungPhanHoi.trim()) {
         return res.status(400).json({ message: 'Nội dung phản hồi là bắt buộc' });
       }
 
@@ -315,22 +315,14 @@ export const ContentController = {
         return res.status(404).json({ message: 'Không tìm thấy yêu cầu hỗ trợ' });
       }
 
-      if (request.trangthai === 'Đã xử lý') {
-        return res.status(400).json({ message: 'Yêu cầu này đã được xử lý xong từ trước' });
-      }
-
       // If support request is a complaint (Khiếu nại), verify order with order-service
-      if (request.loaiyeucau === 'Khiếu nại') {
-        if (!request.mahoadon) {
-          return res.status(400).json({ message: 'Yêu cầu khiếu nại thiếu mã hóa đơn đi kèm để xác minh' });
-        }
-
+      if (request.loaiyeucau === 'Khiếu nại' && request.mahoadon) {
         try {
           // Call order-service internal API GET /:id/verify-internal
           const orderRes = await orderApi.get('/' + request.mahoadon + '/verify-internal');
           const order = orderRes.data;
 
-          if (order.makhachhang !== request.makhachhang) {
+          if (order && order.makhachhang && order.makhachhang !== request.makhachhang) {
             return res.status(400).json({ 
               message: `Xác minh thất bại. Hóa đơn ${request.mahoadon} không thuộc về khách hàng khiếu nại.` 
             });
@@ -340,13 +332,19 @@ export const ContentController = {
           if (orderErr.response && orderErr.response.status === 404) {
             return res.status(404).json({ message: `Mã hóa đơn khiếu nại ${request.mahoadon} không tồn tại trên hệ thống` });
           }
-          return res.status(500).json({ message: 'Không thể kết nối với dịch vụ đơn hàng để xác minh khiếu nại' });
         }
       }
 
+      // Format reply: If already replied and resolved, append follow-up note cleanly
+      let finalReply = noiDungPhanHoi.trim();
+      if (request.noidungphanhoi && (request.trangthai === 'Đã xử lý' || request.trangthai === 'Đã phản hồi')) {
+        finalReply = `${request.noidungphanhoi}\n\n[Cập nhật thêm từ CSKH]: ${noiDungPhanHoi.trim()}`;
+      }
+
       const updated = await ContentModel.replySupportRequest(id, {
-        noiDungPhanHoi,
-        maNVCSKH: req.user.tenDangnhap
+        noiDungPhanHoi: finalReply,
+        maNVCSKH: req.user.tenDangnhap,
+        trangThai: trangThai || 'Đã xử lý'
       });
 
       return res.json({ message: 'Phản hồi yêu cầu hỗ trợ thành công', supportRequest: updated });

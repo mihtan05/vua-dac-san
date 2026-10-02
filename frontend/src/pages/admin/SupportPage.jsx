@@ -15,14 +15,24 @@ const MOCK_TICKETS = [
 ];
 
 const statusStyle = {
-  'Chờ xử lý': 'bg-yellow-100 text-yellow-800',
-  'Đang xử lý': 'bg-blue-100 text-blue-800',
-  'Đã phản hồi': 'bg-green-100 text-green-800',
-  'Đã đóng': 'bg-gray-100 text-gray-600',
+  'Chờ xử lý': 'bg-amber-100 text-amber-800 border border-amber-200',
+  'Đang xử lý': 'bg-blue-100 text-blue-800 border border-blue-200',
+  'Đã xử lý': 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+  'Đã phản hồi': 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+  'Đã đóng': 'bg-gray-100 text-gray-700 border border-gray-200',
+};
+
+const typeStyle = {
+  'Khiếu nại': 'bg-rose-50 text-rose-700 border border-rose-200 font-bold',
+  'Thắc mắc': 'bg-amber-50 text-amber-700 border border-amber-200 font-medium',
+  'Tư vấn': 'bg-sky-50 text-sky-700 border border-sky-200 font-medium',
 };
 
 function TicketModal({ ticket, onClose }) {
   const [reply, setReply] = useState('');
+  const [targetStatus, setTargetStatus] = useState(
+    ticket?.trangthai === 'Chờ xử lý' ? 'Đã xử lý' : (ticket?.trangthai || 'Đã xử lý')
+  );
   const queryClient = useQueryClient();
 
   // 1. Fetch order details if ticket is linked to an order
@@ -69,10 +79,13 @@ function TicketModal({ ticket, onClose }) {
 
   const replyMutation = useMutation({
     mutationFn: async () => {
-      await api.put(`/content/support-requests/${ticket.mayeucau}/reply`, { noiDungPhanHoi: reply });
+      await api.put(`/content/support-requests/${ticket.mayeucau}/reply`, { 
+        noiDungPhanHoi: reply,
+        trangThai: targetStatus
+      });
     },
     onSuccess: () => {
-      toast.success('Đã gửi phản hồi thành công!');
+      toast.success('Đã lưu phản hồi và cập nhật trạng thái!');
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       onClose();
     },
@@ -306,6 +319,33 @@ function TicketModal({ ticket, onClose }) {
             </div>
           )}
 
+          {/* Target status selector */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-brand-dark uppercase tracking-wider">
+              Trạng thái sau khi cập nhật:
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'Đã xử lý', label: 'Đã xử lý (Hoàn tất)', color: 'border-emerald-300 bg-emerald-50 text-emerald-800' },
+                { key: 'Chờ xử lý', label: 'Chờ xử lý (Chưa xong)', color: 'border-amber-300 bg-amber-50 text-amber-800' },
+                { key: 'Đã đóng', label: 'Đã đóng', color: 'border-gray-300 bg-gray-50 text-gray-700' },
+              ].map(st => (
+                <button
+                  type="button"
+                  key={st.key}
+                  onClick={() => setTargetStatus(st.key)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border font-semibold transition ${
+                    targetStatus === st.key
+                      ? `${st.color} ring-2 ring-brand-primary font-bold shadow-xs`
+                      : 'border-brand-light bg-white text-gray-500 hover:bg-brand-bg'
+                  }`}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Reply input */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-brand-dark uppercase tracking-wider">
@@ -344,6 +384,8 @@ function TicketModal({ ticket, onClose }) {
 
 export default function SupportPage() {
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
   const [selectedTicket, setSelectedTicket] = useState(null);
 
   const { data: tickets = [], isLoading } = useQuery({
@@ -379,16 +421,28 @@ export default function SupportPage() {
     }
   });
 
+  const pendingCount = tickets.filter(t => t.trangthai === 'Chờ xử lý').length;
+  const resolvedCount = tickets.filter(t => t.trangthai === 'Đã xử lý' || t.trangthai === 'Đã phản hồi').length;
+  const complaintCount = tickets.filter(t => t.loaiyeucau === 'Khiếu nại').length;
+
   const filtered = tickets.filter(t => {
+    // 1. Status Filter
+    if (statusFilter === 'Chờ xử lý' && t.trangthai !== 'Chờ xử lý') return false;
+    if (statusFilter === 'Đã xử lý' && t.trangthai !== 'Đã xử lý' && t.trangthai !== 'Đã phản hồi') return false;
+    if (statusFilter === 'Đã đóng' && t.trangthai !== 'Đã đóng') return false;
+
+    // 2. Type Filter
+    if (typeFilter !== 'ALL' && t.loaiyeucau !== typeFilter) return false;
+
+    // 3. Search Filter
     const custName = customerMap[t.makhachhang] || '';
     return !search ||
       t.noidungkh?.toLowerCase().includes(search.toLowerCase()) ||
       t.makhachhang?.toLowerCase().includes(search.toLowerCase()) ||
       custName.toLowerCase().includes(search.toLowerCase()) ||
-      t.mahoadon?.toLowerCase().includes(search.toLowerCase());
+      t.mahoadon?.toLowerCase().includes(search.toLowerCase()) ||
+      t.mayeucau?.toLowerCase().includes(search.toLowerCase());
   });
-
-  const pending = tickets.filter(t => t.trangthai === 'Chờ xử lý').length;
 
   return (
     <div className="space-y-6">
@@ -397,30 +451,63 @@ export default function SupportPage() {
         <p className="text-sm text-gray-500">Xử lý yêu cầu hỗ trợ, khiếu nại và hỏi đáp từ khách hàng</p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {/* Summary cards: 3 cards (Tổng yêu cầu, Chờ xử lý, Đã xử lý) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Tổng yêu cầu', value: tickets.length, color: 'text-brand-dark', bg: 'bg-white' },
-          { label: 'Chờ xử lý', value: pending, color: 'text-yellow-700', bg: 'bg-yellow-50' },
-          { label: 'Đang xử lý', value: tickets.filter(t => t.trangthai === 'Đang xử lý').length, color: 'text-blue-700', bg: 'bg-blue-50' },
-          { label: 'Đã phản hồi', value: tickets.filter(t => t.trangthai === 'Đã phản hồi').length, color: 'text-green-700', bg: 'bg-green-50' },
-        ].map(c => (
-          <div key={c.label} className={`${c.bg} border border-brand-light rounded-2xl p-5 shadow-sm`}>
-            <div className={`text-2xl font-bold font-heading ${c.color}`}>{c.value}</div>
-            <div className="text-xs text-gray-500 mt-1">{c.label}</div>
-          </div>
-        ))}
+          { key: 'ALL', label: 'Tổng yêu cầu', value: tickets.length, color: 'text-brand-dark', bg: 'bg-white', activeRing: 'ring-2 ring-brand-primary' },
+          { key: 'Chờ xử lý', label: 'Chờ xử lý', value: pendingCount, color: 'text-amber-700', bg: 'bg-amber-50/70', activeRing: 'ring-2 ring-amber-500' },
+          { key: 'Đã xử lý', label: 'Đã xử lý', value: resolvedCount, color: 'text-emerald-700', bg: 'bg-emerald-50/70', activeRing: 'ring-2 ring-emerald-500' },
+        ].map(c => {
+          const isActive = statusFilter === c.key;
+          return (
+            <div 
+              key={c.label} 
+              onClick={() => setStatusFilter(prev => prev === c.key && c.key !== 'ALL' ? 'ALL' : c.key)}
+              className={`${c.bg} border border-brand-light rounded-2xl p-5 shadow-sm cursor-pointer transition hover:shadow-md ${isActive ? c.activeRing : ''}`}
+            >
+              <div className={`text-2xl font-bold font-heading ${c.color}`}>{c.value}</div>
+              <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
+                <span>{c.label}</span>
+                {isActive && <span className="text-[10px] font-bold text-brand-primary uppercase">Đang lọc</span>}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Tìm tiêu đề, email khách hàng..."
-          className="w-full pl-11 pr-4 py-3 bg-white border border-brand-light rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
-        />
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="relative max-w-sm flex-1">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Tìm mã đơn, KH, nội dung yêu cầu..."
+            className="w-full pl-11 pr-4 py-2.5 bg-white border border-brand-light rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+          />
+        </div>
+
+        {/* Type Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+          {[
+            { key: 'ALL', label: 'Tất cả loại' },
+            { key: 'Khiếu nại', label: `Khiếu nại (${complaintCount})` },
+            { key: 'Thắc mắc', label: 'Thắc mắc' },
+            { key: 'Tư vấn', label: 'Tư vấn' }
+          ].map(type => (
+            <button
+              key={type.key}
+              onClick={() => setTypeFilter(type.key)}
+              className={`px-3 py-2 rounded-xl font-bold transition whitespace-nowrap ${
+                typeFilter === type.key 
+                  ? 'bg-brand-primary text-brand-dark shadow-xs' 
+                  : 'bg-white border border-brand-light text-gray-600 hover:bg-brand-bg'
+              }`}
+            >
+              {type.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Ticket List */}
@@ -442,14 +529,14 @@ export default function SupportPage() {
                     <MessageCircle size={20} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${statusStyle[t.trangthai] || ''}`}>{t.trangthai}</span>
-                      <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-brand-light text-brand-accent">{t.loaiyeucau}</span>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${statusStyle[t.trangthai] || 'bg-gray-100 text-gray-700'}`}>{t.trangthai}</span>
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full ${typeStyle[t.loaiyeucau] || 'bg-brand-light text-brand-accent'}`}>{t.loaiyeucau}</span>
                     </div>
                     <p className="text-sm text-brand-dark mt-2 font-medium line-clamp-1">{t.noidungkh}</p>
                     {t.noidungphanhoi && (
-                      <p className="text-xs text-green-700 mt-1 line-clamp-1 italic border-l-2 border-green-400 pl-2">
-                        Admin: {t.noidungphanhoi}
+                      <p className="text-xs text-emerald-800 mt-1 line-clamp-1 italic border-l-2 border-emerald-500 pl-2">
+                        CSKH: {t.noidungphanhoi}
                       </p>
                     )}
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">

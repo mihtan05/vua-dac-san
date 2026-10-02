@@ -204,9 +204,13 @@ export const ContentModel = {
     let pIndex = 1;
 
     if (trangThai) {
-      query += ` AND trangThai = $${pIndex}`;
-      params.push(trangThai);
-      pIndex++;
+      if (trangThai === 'Đã xử lý' || trangThai === 'Đã phản hồi') {
+        query += ` AND (trangThai = 'Đã xử lý' OR trangThai = 'Đã phản hồi')`;
+      } else {
+        query += ` AND trangThai = $${pIndex}`;
+        params.push(trangThai);
+        pIndex++;
+      }
     }
     if (loaiYeuCau) {
       query += ` AND loaiYeuCau = $${pIndex}`;
@@ -246,17 +250,17 @@ export const ContentModel = {
     return result.rows[0];
   },
 
-  async replySupportRequest(id, { noiDungPhanHoi, maNVCSKH }) {
+  async replySupportRequest(id, { noiDungPhanHoi, maNVCSKH, trangThai = 'Đã xử lý' }) {
     const query = `
       UPDATE YEU_CAU_HO_TRO
       SET noiDungPhanHoi = $1,
           maNVCSKH = $2,
-          trangThai = 'Đã xử lý',
+          trangThai = $3,
           ngayXuLy = NOW()
-      WHERE maYeuCau = $3
+      WHERE maYeuCau = $4
       RETURNING *
     `;
-    const result = await pool.query(query, [noiDungPhanHoi, maNVCSKH, id]);
+    const result = await pool.query(query, [noiDungPhanHoi, maNVCSKH, trangThai, id]);
     return result.rows[0];
   }
 };

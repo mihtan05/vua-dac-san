@@ -368,25 +368,39 @@ export default function SupportPage() {
                 <div key={req.mayeucau} className="p-4 border border-brand-light rounded-2xl space-y-3 hover:border-brand-primary transition">
                   <div className="flex flex-wrap gap-2 justify-between items-start">
                     <div>
-                      <span className="text-xs font-bold px-2 py-1 bg-brand-bg rounded-lg text-brand-dark mr-2">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-lg mr-2 ${
+                        req.loaiyeucau === 'Khiếu nại'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : 'bg-brand-bg text-brand-dark'
+                      }`}>
                         {req.loaiyeucau}
                       </span>
                       <span className="text-xs text-gray-500">
                         {new Date(req.ngaytao).toLocaleString('vi-VN')}
                       </span>
                     </div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
-                      req.trangthai === 'Đã xử lý' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                      (req.trangthai === 'Đã xử lý' || req.trangthai === 'Đã phản hồi')
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        : req.trangthai === 'Đang xử lý'
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                        : 'bg-amber-100 text-amber-700 border border-amber-200'
                     }`}>
                       {req.trangthai}
                     </span>
                   </div>
-                  <div className="text-sm text-brand-dark mt-2 bg-gray-50 p-3 rounded-xl">
+                  <div className="text-sm text-brand-dark mt-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
                     <strong>Nội dung:</strong> {req.noidungkh}
                   </div>
                   {req.noidungphanhoi && (
-                    <div className="text-sm bg-brand-primary/10 text-brand-dark p-3 rounded-xl border border-brand-primary/20">
-                      <strong>CSKH phản hồi:</strong> {req.noidungphanhoi}
+                    <div className="text-sm bg-emerald-50/70 text-emerald-950 p-3.5 rounded-xl border border-emerald-200 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-800 text-xs uppercase tracking-wide">
+                        <CheckCircle size={14} className="text-emerald-600" />
+                        CSKH phản hồi:
+                      </div>
+                      <p className="text-emerald-900 leading-relaxed whitespace-pre-wrap pl-5 text-sm font-medium">
+                        {req.noidungphanhoi}
+                      </p>
                     </div>
                   )}
                 </div>
